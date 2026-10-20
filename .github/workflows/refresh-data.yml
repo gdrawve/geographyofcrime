@@ -1,6 +1,6 @@
 # Weekly crime-data refresh.
 # Every Monday morning (Central time) this:
-#   1. runs scripts/build_crime_grid.py to pull the latest 12 months,
+#   1. runs scripts/build_crime_grid.py to pull the latest two years (map shows 12 months),
 #   2. commits the updated public/data/crime-grid.json if it changed,
 #   3. starts the deploy workflow so the live site picks it up.
 # If the city's API is down, the script exits early and the last good
@@ -48,7 +48,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Stage first so brand-new files (like a first basemap) count.
-          git add public/data/crime-grid.json public/data/crime-bg.json public/data/places.json src/data/research.json
+          git add public/data/crime-grid.json public/data/crime-bg.json public/data/places.json src/data/research.json src/data/kc-stats.json
           if git diff --cached --quiet; then
             echo "No change in data."
             exit 0

@@ -79,8 +79,11 @@ CITY = {
     "bbox": [-94.62, 38.81, -94.37, 39.36],
     "extent_note": "Kansas City, Missouri",
 
-    # How many months back to pull.
-    "months": 12,
+    # How many months back to pull. The map shows the latest 12; the
+    # Kansas City page needs two full years for trends and
+    # year-over-year change, plus a month of slack for reporting lag.
+    "months": 26,
+    "map_months": 12,
 
     # Census block groups for the Neighborhoods view. FIPS codes:
     # Missouri = 29; Jackson 095, Clay 047, Platte 165, Cass 037;
@@ -131,6 +134,9 @@ BANDS = [
 CELL_METERS = 150          # size of the fine grid squares
 OUT_FILE = Path(__file__).resolve().parent.parent / "public" / "data" / "crime-grid.json"
 BG_FILE = OUT_FILE.with_name("crime-bg.json")
+PLACES_FILE = OUT_FILE.with_name("places.json")
+# Read by the Kansas City page when the site builds, so it lives in src/.
+STATS_FILE = Path(__file__).resolve().parent.parent / "src" / "data" / "kc-stats.json"
 PAGE_SIZE = 50_000         # rows per API request
 
 
@@ -316,7 +322,8 @@ def grid_incidents(incidents: list[tuple], bbox: list[float]) -> dict:
 
     slots = len(CATEGORIES) * len(BANDS) * 2
     cells = defaultdict(lambda: [0] * slots)
-    for lat, lon, cat, band, weekend in incidents:
+    # `*_` ignores any extra fields (the date) at the end of each tuple.
+    for lat, lon, cat, band, weekend, *_ in incidents:
         x, y = to_meters(lat, lon, south, west, m_per_deg_lon)
         ix, iy = int(x // CELL_METERS), int(y // CELL_METERS)
         if 0 <= ix < cols and 0 <= iy < rows:
@@ -349,6 +356,7 @@ def demo_incidents() -> tuple[list[tuple], list[float]]:
     filters show visibly different maps.
     """
     rnd = random.Random(1984)
+    today = date.today()
     bbox = [-94.20, 36.02, -94.066, 36.10]  # roughly 12 × 9 km
     w, s, e, n = bbox
 
@@ -379,7 +387,17 @@ def demo_incidents() -> tuple[list[tuple], list[float]]:
                 lat, lon = s + rnd.random() * (n_ - s), w + rnd.random() * (e - w)
             else:
                 lat, lon = at(*places[where])
-            out.append((lat, lon, cat, band_of(hour_from(band_w)), int(rnd.random() < weekend_p)))
+            hour = hour_from(band_w)
+            weekend = int(rnd.random() < weekend_p)
+            # A made-up date in the last two years that matches the
+            # weekend flag, with a mild summer rise so trends have shape.
+            while True:
+                d = today - timedelta(days=rnd.randrange(1, 760))
+                summer = 1 + 0.35 * math.cos((d.month - 7) / 12 * 2 * math.pi)
+                if int(d.weekday() >= 5) == weekend and rnd.random() < summer / 1.35:
+                    break
+            when = datetime(d.year, d.month, d.day, hour, rnd.randrange(60))
+            out.append((lat, lon, cat, band_of(hour), weekend, when))
 
     n_ = n
     V, VEH, BUR, TH, OTH = range(5)
@@ -453,14 +471,25 @@ def main():
             first = when if first is None or when < first else first
             last = when if last is None or when > last else last
             incidents.append((lat, lon, categorize(r.get(f["offense"]), cfg.get("offense_is_nibrs", False)),
-                              band_of(when.hour), int(when.weekday() >= 5)))
+                              band_of(when.hour), int(when.weekday() >= 5), when))
         print(f"Kept {len(incidents):,} incidents, dropped {dropped:,}", file=sys.stderr)
         if len(incidents) < 100:
             # Safety net: never replace good data with a near-empty pull.
             sys.exit("Too few incidents returned; keeping the existing file.")
         bbox = cfg["bbox"]
         meta = {"city": cfg["name"], "extent": cfg.get("extent_note", ""), "source": cfg["source"], "sourceUrl": cfg["source_url"],
-                "start": first.date().isoformat(), "end": last.date().isoformat(), "demo": False}
+                "demo": False}
+
+    # The map and neighborhoods show the latest 12 months only; the full
+    # two-year pull feeds the trends on the Kansas City page.
+    map_months = CITY.get("map_months", 12) if not args.demo else 12
+    last_seen = max(inc[5] for inc in incidents)
+    recent_from = datetime.combine(last_seen.date() - timedelta(days=round(map_months * 30.44)), datetime.min.time())
+    all_incidents = incidents
+    incidents = [inc for inc in all_incidents if inc[5] >= recent_from]
+    meta["start"] = min(inc[5] for inc in incidents).date().isoformat()
+    meta["end"] = last_seen.date().isoformat()
+    print(f"Map window: {meta['start']} to {meta['end']} ({len(incidents):,} incidents)", file=sys.stderr)
 
     grid = grid_incidents(incidents, bbox)
     payload = {
@@ -497,6 +526,16 @@ def main():
             f"U.S. Census Bureau TIGER/Line {CITY['block_groups']['tiger_year']} block groups; "
             f"population from ACS {CITY['block_groups']['acs_year']} 5-year (B01003)")
         bgmod.write(bgs, BG_FILE, {"boundarySource": src})
+
+    # ── Kansas City page statistics (trends, hour × day, rankings) ──
+    import crime_stats
+    try:
+        places = json.loads(PLACES_FILE.read_text())["places"]
+    except (OSError, ValueError, KeyError):
+        places = []
+    stats = crime_stats.build(all_incidents, [c for c, _ in CATEGORIES], recent_from, grid["cells"],
+                              bgs, places, payload["meta"])
+    crime_stats.write(stats, STATS_FILE)
     print(f"Wrote {OUT_FILE} ({OUT_FILE.stat().st_size / 1024:.0f} KB, "
           f"{len(grid['cells']):,} occupied cells)", file=sys.stderr)
 
