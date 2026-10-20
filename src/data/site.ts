@@ -15,6 +15,9 @@ export const site = {
   // Fayetteville, AR. Shown as a small map-style label in the header.
   coords: '36.06° N, 94.16° W',
   email: 'gdrawve@capindex.com',
+  // Cloudflare Web Analytics: cookie-free visit counts. This token is
+  // public by design (it sits in every page's HTML). Set to '' to turn off.
+  cloudflareAnalyticsToken: '8e16777b79874248989521f36ea12a3e',
 };
 
 export const person = {

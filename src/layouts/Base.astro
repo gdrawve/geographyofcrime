@@ -86,6 +86,11 @@ const ld = [personLd, websiteLd, ...extra];
     />
 
     {ld.map((block) => <script type="application/ld+json" set:html={JSON.stringify(block)} />)}
+
+    {/* Visitor statistics: Cloudflare Web Analytics, no cookies, no personal data. */}
+    {site.cloudflareAnalyticsToken && (
+      <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: site.cloudflareAnalyticsToken })} is:inline></script>
+    )}
   </head>
   <body>
     <a class="skip visually-hidden" href="#main">Skip to content</a>
