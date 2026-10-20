@@ -32,6 +32,30 @@ const career = [
   },
 ];
 
+// Places around Northwest Arkansas, for the "Home base" panel.
+const nwaPlaces = [
+  { city: 'Bentonville', places: [
+    ['Downtown Square', 'Local shops · community gatherings'],
+    ['Crystal Bridges', 'Museum grounds · woodland trails'],
+    ['Coler Mountain Bike Preserve', 'Mountain biking · outdoor recreation'],
+  ] },
+  { city: 'Rogers', places: [
+    ['Historic Downtown', 'Walkable streets · local businesses'],
+    ['Pinnacle Hills Promenade', 'Regional shopping · dining'],
+    ['Lake Atalanta', 'Lakeside park · connected trails'],
+  ] },
+  { city: 'Springdale', places: [
+    ['Downtown / Emma Avenue', 'Arts · public spaces · Greenway'],
+    ['Arvest Ballpark', 'Baseball · event-day destinations'],
+    ['Jones Center', 'Sports · community recreation'],
+  ] },
+  { city: 'Fayetteville', places: [
+    ['University of Arkansas', 'Campus · learning · gathering places'],
+    ['Dickson Street', 'Dining · live music · nightlife'],
+    ['Kessler Mountain Regional Park', 'Trails · sports fields · open space'],
+  ] },
+];
+
 // Selected highlights from the CV.
 const highlights = [
   { figure: '$2.7M', label: 'External funding as PI or Co-PI', detail: 'NIJ, NSF, BJA, DHS, and OJJDP, plus city and nonprofit partners' },
@@ -168,7 +192,17 @@ const schema = {
           <div class="stack">
             <p class="label">Home base</p>
             <p class="big-line">Northwest Arkansas.</p>
-            <p>We live along the I-49 corridor that ties Bentonville, Rogers, Springdale, and Fayetteville together: four cities, each with its own downtown, and Beaver Lake just to the east.</p>
+            <p>We live along the I-49 corridor that ties Bentonville, Rogers, Springdale, and Fayetteville together. One region, many places: connected by corridors, defined by neighborhoods.</p>
+            <ol class="nwa-cities">
+              {nwaPlaces.map((c, i) => (
+                <li>
+                  <p class="label nwa-n">{String(i + 1).padStart(2, '0')} / {c.city}</p>
+                  <ul>
+                    {c.places.map(([name, what]) => <li><strong>{name}</strong><span>{what}</span></li>)}
+                  </ul>
+                </li>
+              ))}
+            </ol>
           </div>
           <NwaMap />
         </article>
@@ -245,7 +279,15 @@ const schema = {
   .big-line { font-family: var(--display); font-stretch: 125%; font-weight: 850; font-size: 2rem; line-height: 1; color: var(--hot-ink); }
   .home-panel { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
   @media (min-width: 760px) { .home-panel { grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem); align-items: center; } }
-  .home-panel :global(.nwa svg) { max-height: 26rem; }
+  .home-panel :global(.nwa svg) { max-height: 34rem; }
+  @media (min-width: 760px) { .home-panel { align-items: start; } }
+  .nwa-cities { list-style: none; margin: 0.6rem 0 0; padding: 0; display: grid; gap: 1.1rem 1.75rem; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 560px) { .nwa-cities { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .nwa-cities > li { border-top: 2px solid var(--hot); padding-top: 0.6rem; display: grid; gap: 0.45rem; align-content: start; }
+  .nwa-n { color: var(--hot-ink); }
+  .nwa-cities ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+  .nwa-cities ul li { display: grid; gap: 0.05rem; font-size: var(--t-sm); }
+  .nwa-cities ul li span { color: var(--ink-2); font-size: var(--t-xs); }
   .dogs-panel { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); gap: 1.1rem; }
   @media (min-width: 760px) { .dogs-panel { grid-template-columns: 13rem minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
   .dogs-panel figure { margin: 0; display: grid; gap: 0.45rem; min-width: 0; }
