@@ -33,6 +33,14 @@ YEAR = 2024
 COUNTIES = ["05007", "05143"]                     # Benton, Washington (Arkansas = 05)
 BBOX = (-94.40, 35.98, -93.88, 36.50)            # west, south, east, north
 CITIES = ["Bentonville", "Rogers", "Springdale", "Fayetteville"]
+# Dots sit on each downtown (town square or main street), not the middle
+# of the city limits. (lon, lat)
+DOWNTOWNS = {
+    "Bentonville": (-94.2088, 36.3729),   # Bentonville Square
+    "Rogers": (-94.1185, 36.3320),        # Historic downtown Rogers
+    "Springdale": (-94.1288, 36.1867),    # Emma Avenue
+    "Fayetteville": (-94.1574, 36.0626),  # Fayetteville Square
+}
 OUT = Path(__file__).resolve().parent.parent / "src" / "data" / "nwa-basemap.json"
 WIDTH = 1000                                     # drawing units across
 
@@ -97,7 +105,8 @@ def main() -> None:
             name = (rec.get("FULLNAME") or "").strip()
             if rec.get("MTFCC") == "S1100":
                 (interstates if name.startswith("I-") else highways).append(geom)
-            elif rec.get("MTFCC") == "S1200":
+            elif rec.get("MTFCC") == "S1200" and geom.length > 0.03:
+                # Only longer arterials (~3 km+): enough texture, small file.
                 major.append(geom)
         for rec, geom in read_zip(f"{BASE}/AREAWATER/tl_{YEAR}_{c}_areawater.zip"):
             if float(rec.get("AWATER") or 0) > 1_000_000:   # lakes over ~1 km²
@@ -114,16 +123,16 @@ def main() -> None:
         "height": HEIGHT,
         "bbox": BBOX,
         "water": path_d(unary_union(water), 0.0012) if water else "",
-        "major": path_d(unary_union(major), 0.0015) if major else "",
+        "major": path_d(unary_union(major), 0.003) if major else "",
         "highways": path_d(unary_union(highways), 0.001) if highways else "",
         "interstate": path_d(unary_union(interstates), 0.0008) if interstates else "",
+        "lakeLabel": to_xy(-94.03, 36.33),     # Beaver Lake, for the label
         "cities": [
             {
                 "name": n,
                 "outline": path_d(g, 0.001),
-                # Label anchor: a point inside the city, projected.
-                "x": to_xy(*g.representative_point().coords[0])[0],
-                "y": to_xy(*g.representative_point().coords[0])[1],
+                "x": to_xy(*DOWNTOWNS[n])[0],
+                "y": to_xy(*DOWNTOWNS[n])[1],
             }
             for n, g in sorted(cities.items(), key=lambda kv: -kv[1].centroid.y)
         ],
