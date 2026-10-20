@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import EmailCopy from '../components/EmailCopy.astro';
+import NwaMap from '../components/NwaMap.astro';
 import { person } from '../data/site';
 
 // Career timeline, newest first. Edit here when roles change.
@@ -163,6 +164,15 @@ const schema = {
           <p>When we're not running between sports and activities, we're usually outside: hiking, biking, landscaping, or making the most of patio season.</p>
         </article>
 
+        <article class="panel home-panel">
+          <div class="stack">
+            <p class="label">Home base</p>
+            <p class="big-line">Northwest Arkansas.</p>
+            <p>We live along the I-49 corridor that ties Bentonville, Rogers, Springdale, and Fayetteville together: four cities, each with its own downtown, and Beaver Lake just to the east.</p>
+          </div>
+          <NwaMap />
+        </article>
+
         <article class="panel dogs-panel">
           <div class="stack dogs-text">
             <p class="label">The dogs, shortest to tallest</p>
@@ -233,6 +243,9 @@ const schema = {
   @media (max-width: 420px) { .lego-panel { grid-template-columns: minmax(0, 1fr); } }
   .lego { width: 120px; height: 120px; border-radius: var(--radius); border: 1px solid var(--rule); background: var(--paper); }
   .big-line { font-family: var(--display); font-stretch: 125%; font-weight: 850; font-size: 2rem; line-height: 1; color: var(--hot-ink); }
+  .home-panel { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+  @media (min-width: 760px) { .home-panel { grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem); align-items: center; } }
+  .home-panel :global(.nwa svg) { max-height: 26rem; }
   .dogs-panel { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); gap: 1.1rem; }
   @media (min-width: 760px) { .dogs-panel { grid-template-columns: 13rem minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
   .dogs-panel figure { margin: 0; display: grid; gap: 0.45rem; min-width: 0; }

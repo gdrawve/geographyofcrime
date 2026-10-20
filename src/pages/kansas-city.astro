@@ -7,6 +7,7 @@
 import Base from '../layouts/Base.astro';
 import stats from '../data/kc-stats.json';
 import { safeJson } from '../lib/safe-json';
+import CrimeMap from '../components/CrimeMap.astro';
 
 const { meta, months, days, monthly, yoy, hourDay, concentration: conc, neighborhoods: hoods } = stats as any;
 const cats: string[] = meta.categories;
@@ -93,7 +94,7 @@ const schema = {
       <div class="section-head">
         <p class="label">Kansas City, Missouri · Updated {longDate(meta.updated)}</p>
         <h1>Kansas City crime by the numbers</h1>
-        <p class="lede">A year of police-reported crime, counted and charted. It updates every Monday from KCPD's open data. The <a href="/#map">interactive map</a> shows where it happens.</p>
+        <p class="lede">A year of police-reported crime, counted and charted. It updates every Monday from KCPD's open data. The <a href="#map">interactive map</a> shows where it happens.</p>
         {meta.demo && <p class="note">Preview: these numbers are simulated until the next data refresh.</p>}
       </div>
 
@@ -121,6 +122,14 @@ const schema = {
       </ul>
     </div>
   </section>
+
+  <section class="section map-intro">
+    <div class="wrap section-head">
+      <h2>Where it happens: the interactive map</h2>
+      <p>Filter by NIBRS crime group, time of day, and day of week, then pan and zoom. Click a hexagon or neighborhood for details.</p>
+    </div>
+  </section>
+  <CrimeMap kcLink={false} />
 
   <section class="section kc" data-kc>
     <div class="wrap stack-lg">
@@ -257,6 +266,8 @@ const schema = {
 
 <style>
   /* Charts use the same colorblind-safe crime colors as the map. */
+  .map-intro { padding-bottom: 1.25rem; }
+  .map-intro .section-head { margin-bottom: 0; }
   .note { color: var(--ink-2); font-size: var(--t-sm); max-width: 70ch; }
   .stack-lg { display: grid; gap: 3rem; }
 

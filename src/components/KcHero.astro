@@ -1,0 +1,99 @@
+---
+// Home-page graphic: a year of Kansas City crime in hexagons over a
+// faint street map, with the concentration figure, linking to the
+// Kansas City page. Drawn at build time from the weekly data, so it
+// refreshes every Monday. Always uses the light palette, like the map.
+import kc from '../data/kc-basemap.json';
+import { kcHexes } from '../lib/kc-hex';
+
+const { hexes, topShare, start, end } = kcHexes();
+const [W, S, E, N] = kc.bbox as [number, number, number, number];
+const K = Math.cos((((S + N) / 2) * Math.PI) / 180);
+const scale = kc.width / ((E - W) * K);
+const xy = (lon: number, lat: number) => [((lon - W) * K * scale).toFixed(1), ((N - lat) * scale).toFixed(1)];
+
+// Show the core of the city, cropped a little at the bottom.
+const viewH = Math.round(kc.height * 0.9);
+const inView = (ring: [number, number][]) => ring.some(([lon, lat]) => lon > W - 0.01 && lon < E + 0.01 && lat > S - 0.01 && lat < N + 0.01);
+const shown = hexes.filter((h) => inView(h.ring));
+// Shades by quantile of the hexagons drawn here (the city core is busy
+// overall, so citywide breaks would paint almost everything dark).
+const vals = shown.map((h) => h.v).sort((a, b) => a - b);
+const q = (p: number) => vals[Math.min(vals.length - 1, Math.floor(p * vals.length))] ?? 0;
+const breaks = [q(0.4), q(0.75), q(0.92)];
+const cls = (v: number) => (v > breaks[2] ? 3 : v > breaks[1] ? 2 : v > breaks[0] ? 1 : 0);
+const RAMP = ['#efe6d0', '#f0d38e', '#e39a5c', '#b4371f'];
+// See-through enough that the street grid shows under the hexagons.
+const OPACITY = [0.45, 0.6, 0.72, 0.85];
+
+// Neutral landmarks for orientation only (not labels on hot spots).
+const landmarks = [
+  { name: 'Downtown', lon: -94.5786, lat: 39.1010 },
+  { name: 'Country Club Plaza', lon: -94.5930, lat: 39.0412 },
+];
+const month = (iso: string) => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+const pct = Math.round(topShare * 100);
+---
+<figure class="kch">
+  <div class="kch-top">
+    <span class="label kch-kicker">Crime has a pattern · Place helps explain it</span>
+    <span class="label">Kansas City, Missouri</span>
+  </div>
+  <a class="kch-map" href="/kansas-city/" aria-label={`Kansas City crime by the numbers: ${pct}% of recorded offenses fall in the busiest 10% of hexagons. Open the Kansas City page.`}>
+    <svg viewBox={`0 0 ${kc.width} ${viewH}`} aria-hidden="true" preserveAspectRatio="xMidYMid slice">
+      <image href="/graphics/kc-basemap.svg" x="0" y="0" width={kc.width} height={kc.height} />
+      <g class="hex">
+        {shown.map((h) => (
+          <path d={'M' + h.ring.map(([lon, lat]) => xy(lon, lat).join(',')).join(' L') + 'Z'} fill={RAMP[cls(h.v)]} fill-opacity={OPACITY[cls(h.v)]} />
+        ))}
+      </g>
+      {landmarks.map((l) => {
+        const [x, y] = xy(l.lon, l.lat);
+        return <text class="lm" x={x} y={y} text-anchor="middle">{l.name.toUpperCase()}</text>;
+      })}
+      <g class="north" transform={`translate(${kc.width - 50} 60)`}>
+        <path d="M0 -28 L11 8 L0 2 L-11 8 Z" /><text y="34">N</text>
+      </g>
+    </svg>
+  </a>
+  <div class="kch-legend" aria-hidden="true">
+    <span>Fewer</span>{RAMP.map((c) => <i style={`background:${c}`}></i>)}<span>More recorded offenses</span>
+    <span class="kch-dates">{month(start)} – {month(end)}</span>
+  </div>
+  <figcaption class="kch-stat">
+    <span class="kch-big">{pct}%</span>
+    <span class="kch-text">
+      <strong>of recorded offenses fall in the busiest 10% of hexagons.</strong>
+      <a href="/kansas-city/">Explore Kansas City by the numbers&nbsp;→</a>
+    </span>
+  </figcaption>
+  <p class="kch-src">NIBRS Group A offenses, H3 hexagons (0.74 km²). Data: KCPD via KC Open Data, updated weekly. Streets: U.S. Census TIGER/Line.</p>
+</figure>
+
+<style>
+  /* Pinned to the light palette, like the interactive map. */
+  .kch {
+    --paper: #f5efe0; --paper-2: #ebe2cc; --ink: #1f2d48; --ink-2: #4c566a; --rule: #d9cfb6; --card: #fbf8f0; --hot: #b4371f; --hot-ink: #9a2f18;
+    color-scheme: light; color: var(--ink);
+    margin: 0; display: grid; gap: 0.6rem; min-width: 0;
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 0.9rem 0.9rem 0.8rem;
+  }
+  .kch-top { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .kch-kicker { color: var(--hot-ink); }
+  .kch-map { display: block; border-radius: 2px; overflow: hidden; background: var(--paper); outline-offset: 3px; }
+  .kch-map svg { display: block; width: 100%; height: auto; aspect-ratio: 1000 / 840; }
+  .kch-map:hover .hex path { fill-opacity: 0.95; }
+  .hex path { stroke: #fbf8f0; stroke-width: 2.5; transition: fill-opacity 0.15s; }
+  .lm { font: 500 22px var(--mono); letter-spacing: 0.12em; fill: var(--ink); paint-order: stroke; stroke: #fbf8f0; stroke-width: 6px; stroke-linejoin: round; }
+  .north path { fill: var(--ink); }
+  .north text { font: 500 20px var(--mono); fill: var(--ink); text-anchor: middle; }
+  .kch-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; font: 400 0.68rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+  .kch-legend i { width: 1.4rem; height: 0.6rem; border-radius: 2px; }
+  .kch-dates { margin-left: auto; }
+  .kch-stat { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.25rem 0.9rem; align-items: center; border-top: 1px solid var(--rule); padding-top: 0.7rem; }
+  .kch-big { font-family: var(--display); font-stretch: 112%; font-weight: 850; font-size: clamp(2.2rem, 1.6rem + 2vw, 3rem); line-height: 1; color: var(--hot-ink); }
+  .kch-text { font-size: var(--t-sm); color: var(--ink-2); }
+  .kch-text strong { display: block; color: var(--ink); font-size: var(--t-md); }
+  .kch-text a { font-weight: 600; }
+  .kch-src { font-size: 0.68rem; color: var(--ink-2); }
+</style>

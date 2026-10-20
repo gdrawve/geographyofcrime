@@ -10,6 +10,8 @@
 //
 // Data: /data/crime-grid.json, /data/crime-bg.json, /data/places.json,
 // built weekly by scripts/. Only aggregated counts are published.
+interface Props { kcLink?: boolean }   // link to the Kansas City page (off when already on it)
+const { kcLink = true } = Astro.props;
 ---
 <section class="crime-map" id="map" aria-label="Kansas City crime map">
   <div class="cm-controls wrap">
@@ -82,7 +84,7 @@
       </div>
 
 
-      <p class="more-kc"><a href="/kansas-city/">Kansas City by the numbers: trends, peak hours, and neighborhood rankings →</a></p>
+      {kcLink && <p class="more-kc"><a href="/kansas-city/">Kansas City by the numbers: trends, peak hours, and neighborhood rankings →</a></p>}
       <p class="label src" data-src-line></p>
     </aside>
   </div>

@@ -1,8 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Video from '../components/Video.astro';
-import CrimeMap from '../components/CrimeMap.astro';
-import NwaMap from '../components/NwaMap.astro';
+import KcHero from '../components/KcHero.astro';
 import EmailCopy from '../components/EmailCopy.astro';
 import { episodes, epLabel, epTitle } from '../data/episodes';
 import { tutorials, tracks } from '../data/tutorials';
@@ -30,9 +29,8 @@ const writingCount = talks.length + articles.length + conversations.length;
           <a class="btn" href="/podcast/">Listen to the podcast</a>
           <a class="btn ghost" href="/tutorials/">Browse {tutorials.length} tutorials</a>
         </div>
-        <a class="map-teaser" href="#map">Explore a live Kansas City crime map ↓</a>
       </div>
-      <NwaMap />
+      <KcHero />
     </div>
   </section>
 
@@ -79,14 +77,6 @@ const writingCount = talks.length + articles.length + conversations.length;
     </div>
   </section>
 
-  <section class="section map-intro">
-    <div class="wrap section-head">
-      <p class="label">See it in action</p>
-      <h2>A year of Kansas City crime, mapped.</h2>
-      <p>Real police data, updated weekly. Filter by NIBRS crime group, time of day, and day of week, then pan and zoom to see where crime concentrates. For trends and neighborhood rankings, see <a href="/kansas-city/">Kansas City by the numbers</a>.</p>
-    </div>
-  </section>
-  <CrimeMap />
 
   <section class="section">
     <div class="wrap">
@@ -148,24 +138,19 @@ const writingCount = talks.length + articles.length + conversations.length;
 
 <style>
   .hero { padding-block: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 3vw, 2.5rem); }
-  /* Text on the left, the Northwest Arkansas map on the right. On
-     phones the map follows the text, at a modest height. */
+  /* Text on the left, the Kansas City hex graphic on the right;
+     on phones the graphic follows the text. */
   .hero-grid {
     display: grid;
     gap: 2rem clamp(2rem, 5vw, 5rem);
     grid-template-columns: minmax(0, 1fr);
     align-items: center;
   }
-  @media (min-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1.25fr) minmax(16rem, 0.75fr); } }
-  @media (max-width: 899px) { .hero-grid :global(.nwa) { max-width: 24rem; } .hero-grid :global(.nwa svg) { max-height: 22rem; } }
+  @media (min-width: 960px) { .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); } }
   .hero-copy { display: grid; gap: 1.1rem; min-width: 0; justify-items: start; }
   .hero-copy .lede { max-width: 38rem; }
   .hero h1 { font-size: clamp(2.6rem, 1.6rem + 4.4vw, 5rem); font-stretch: 118%; }
   .cta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
-  .map-teaser { font-size: var(--t-sm); font-weight: 600; justify-self: start; }
-  /* The map's intro sits tight above the full-width map. */
-  .map-intro { padding-bottom: 1.25rem; border-bottom: 0; }
-  .map-intro .section-head { margin-bottom: 0; }
 
   /* Three doors: a ruled index, not a card grid */
   .doors {
