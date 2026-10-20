@@ -148,7 +148,9 @@ import 'maplibre-gl/dist/maplibre-gl.css';
   .src { text-transform: none; letter-spacing: 0.02em; font-size: 0.68rem; line-height: 1.5; }
   .src :global(a) { color: inherit; text-decoration: underline; }
 
-  /* MapLibre controls in the site's palette */
+  /* MapLibre controls in the site's palette. Credit links are underlined
+     so they don't rely on color alone (WCAG link-in-text-block). */
+  .cm-map :global(.maplibregl-ctrl-attrib a) { text-decoration: underline; color: #1f2d48; }
   .cm-map :global(.maplibregl-ctrl-group) { border-radius: var(--radius); }
   .cm-map :global(.maplibregl-popup-content) { font: 400 var(--t-sm)/1.4 var(--body); color: #1f2d48; }
 </style>
