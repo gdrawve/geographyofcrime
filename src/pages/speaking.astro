@@ -1,0 +1,167 @@
+---
+// Speaking kit: everything an event organizer needs, so they don't
+// have to email for a bio or photo. Text lives in src/data/speaking.ts.
+import Base from '../layouts/Base.astro';
+import EmailCopy from '../components/EmailCopy.astro';
+import { bios, intro, topics, formats } from '../data/speaking';
+import { invited } from '../data/talks';
+
+// Distinct recent venues, newest first, for the "Recent audiences" strip.
+const venues = [...new Set(invited.map((t) => t.venue.split(',')[0]))].slice(0, 8);
+---
+<Base
+  title="Speaking kit"
+  description="Speaking kit for Grant Drawve, PhD: short, medium, and long bios, an emcee introduction, talk topics on crime risk, retail loss prevention, and crime analysis, formats, and headshots."
+>
+  <section class="section">
+    <div class="wrap sk-hero">
+      <div class="stack">
+        <p class="label">Speaking kit</p>
+        <h1>For event organizers</h1>
+        <p class="lede">Bios, topics, and photos in one place. Copy what you need; email me for anything else.</p>
+      </div>
+      <dl class="facts">
+        <div><dt class="label">Recent audiences</dt><dd>{venues.join(' · ')}</dd></div>
+        <div><dt class="label">Formats</dt><dd>{formats.join(' · ')}</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Topics</h2>
+        <p>Each is tailored to the audience. Recordings of past talks are on <a href="/talks/">Talks &amp; Writing</a>.</p>
+      </div>
+      <ol class="topics">
+        {topics.map((t, i) => (
+          <li>
+            <span class="label n">{String(i + 1).padStart(2, '0')}</span>
+            <div class="stack t-body">
+              <h3>{t.title}</h3>
+              <p class="label for">{t.for}</p>
+              <p>{t.blurb}</p>
+              <p class="given">Given at: {t.given}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head"><h2>Bios</h2><p>Third person, ready to paste.</p></div>
+      <div class="bios">
+        {bios.map((b) => (
+          <article class="bio">
+            <header>
+              <div>
+                <h3>{b.label}</h3>
+                <p class="label">{b.use} · {b.text.split(/\s+/).length} words</p>
+              </div>
+              <button type="button" class="copy" data-copy-from={`bio-${b.id}`}>Copy</button>
+            </header>
+            <div id={`bio-${b.id}`} class="bio-text">
+              {b.text.split('\n\n').map((p) => <p>{p}</p>)}
+            </div>
+          </article>
+        ))}
+        <article class="bio">
+          <header>
+            <div>
+              <h3>Emcee introduction</h3>
+              <p class="label">Read aloud · about 15 seconds</p>
+            </div>
+            <button type="button" class="copy" data-copy-from="bio-intro">Copy</button>
+          </header>
+          <div id="bio-intro" class="bio-text"><p>{intro}</p></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head"><h2>Photos</h2><p>Free to use for event promotion.</p></div>
+      <div class="photos">
+        <figure>
+          <img src="/brand/headshot-400.webp" alt="Grant Drawve, smiling, in glasses and a plaid jacket" width="200" height="200" loading="lazy" />
+          <figcaption>
+            <span class="p-name">Headshot</span>
+            <a href="/brand/headshot.jpg" download="Grant-Drawve-headshot.jpg">Download JPG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="/brand/lego-bigfoot-480.webp" alt="Grant's Lego-style profile picture: a bearded bigfoot minifigure in glasses holding a crime analytics report" width="200" height="200" loading="lazy" />
+          <figcaption>
+            <span class="p-name">Informal avatar</span>
+            <a href="/brand/lego-bigfoot-480.webp" download="Grant-Drawve-avatar.webp">Download</a>
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head"><h2>Invite me</h2><p>Send the date, audience, format, and length. I'll reply with a fit and a draft abstract.</p></div>
+      <EmailCopy />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .sk-hero { display: grid; gap: 2rem 3rem; grid-template-columns: minmax(0, 1fr); align-items: end; }
+  @media (min-width: 900px) { .sk-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .facts { margin: 0; display: grid; border-top: 1.5px solid var(--ink); }
+  .facts div { display: grid; gap: 0.35rem; padding: 0.85rem 0; border-bottom: 1px solid var(--rule); }
+  .facts dd { margin: 0; font-size: var(--t-sm); }
+
+  .topics { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
+  .topics li { display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 1rem; padding: 1.25rem 0; border-bottom: 1px solid var(--rule); }
+  .n { color: var(--hot-ink); padding-top: 0.35rem; }
+  .t-body { gap: 0.35rem; max-width: 70ch; }
+  .t-body h3 { font-size: var(--t-lg); }
+  .for { text-transform: none; letter-spacing: 0.02em; color: var(--ink-2); }
+  .given { color: var(--ink-2); font-size: var(--t-sm); }
+
+  .bios { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); align-items: start; }
+  .bio { display: grid; gap: 0.8rem; padding: 1.2rem 1.3rem; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--card); }
+  .bio header { display: flex; justify-content: space-between; align-items: start; gap: 1rem; }
+  .bio h3 { font-size: var(--t-lg); }
+  .bio-text { display: grid; gap: 0.7rem; font-size: var(--t-sm); }
+  .copy {
+    flex: none;
+    font: 500 var(--t-xs)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 0.55rem 0.8rem; border: 1.5px solid var(--ink); border-radius: var(--radius);
+    background: transparent; color: var(--ink); cursor: pointer;
+  }
+  .copy:hover { background: var(--ink); color: var(--paper); }
+
+  .photos { display: flex; flex-wrap: wrap; gap: 2rem; }
+  .photos figure { margin: 0; display: grid; gap: 0.6rem; }
+  .photos img { width: 200px; height: 200px; object-fit: cover; border-radius: var(--radius); border: 1px solid var(--rule); }
+  .photos figcaption { display: grid; gap: 0.15rem; font-size: var(--t-sm); }
+  .p-name { font-weight: 650; }
+</style>
+
+<script>
+  // Copy a bio's text (paragraphs joined by a blank line) to the clipboard.
+  document.querySelectorAll<HTMLButtonElement>('[data-copy-from]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const box = document.getElementById(b.dataset.copyFrom!)!;
+      const text = [...box.querySelectorAll('p')].map((p) => p.textContent!.trim()).join('\n\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        b.textContent = 'Copied';
+      } catch {
+        // Clipboard blocked: select the text so it can be copied by hand.
+        const r = document.createRange(); r.selectNodeContents(box);
+        const s = getSelection()!; s.removeAllRanges(); s.addRange(r);
+        b.textContent = 'Selected';
+      }
+      setTimeout(() => (b.textContent = 'Copy'), 1800);
+    }),
+  );
+</script>
