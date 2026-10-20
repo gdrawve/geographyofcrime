@@ -7,6 +7,7 @@ import Base from '../../layouts/Base.astro';
 import Video from '../../components/Video.astro';
 import { episodes, epLabel, epTitle, type Episode } from '../../data/episodes';
 import { site } from '../../data/site';
+import { videoObject } from '../../lib/video-schema';
 
 export function getStaticPaths() {
   return episodes.map((e, i) => ({
@@ -24,7 +25,7 @@ const description = e.summary ||
 const paragraphs = e.transcript.split(/\n\s*\n/).filter(Boolean);
 const pageUrl = `${site.url}/podcast/${e.slug}/`;
 
-const schema = [
+const schema: Record<string, unknown>[] = [
   {
     '@context': 'https://schema.org',
     '@type': 'PodcastEpisode',
@@ -37,16 +38,10 @@ const schema = [
     actor: e.guests.map((g) => ({ '@type': 'Person', name: g })),
     ...(e.transcript ? { transcript: e.transcript } : {}),
   },
-  {
-    '@context': 'https://schema.org',
-    '@type': 'VideoObject',
-    name: `The Geography of Crime, ${title}`,
-    description,
-    thumbnailUrl: `https://i.ytimg.com/vi/${e.youtube}/hqdefault.jpg`,
-    contentUrl: `https://www.youtube.com/watch?v=${e.youtube}`,
-    embedUrl: `https://www.youtube.com/embed/${e.youtube}`,
-  },
 ];
+// The video, when its upload date is known (see src/lib/video-schema.ts).
+const video = videoObject(e.youtube, `The Geography of Crime, ${title}`, description);
+if (video) schema.push({ '@context': 'https://schema.org', ...video });
 ---
 <Base title={title} description={description} schema={schema}>
   <article class="section">

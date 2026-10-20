@@ -1,20 +1,18 @@
 ---
-// A fast YouTube slot. It shows only a thumbnail and a play button
-// until someone taps it; the full YouTube player (~1 MB) loads on
-// demand. The old site loaded every player up front, which is why
-// its tutorial pages were slow.
-import 'lite-youtube-embed/src/lite-yt-embed.css';
-
+// A fast, private YouTube slot: a thumbnail served from this site and a
+// play button. The YouTube player (~1 MB) loads only when someone
+// presses play, and nothing contacts YouTube before that.
+// Behavior lives in src/scripts/yt.ts.
 interface Props { id: string; title: string; }
 const { id, title } = Astro.props;
 ---
-<lite-youtube videoid={id} playlabel={`Play: ${title}`} params="rel=0" title={title}>
-  <a href={`https://www.youtube.com/watch?v=${id}`} class="lty-playbtn" title={`Play: ${title}`}>
-    <span class="lyt-visually-hidden">Play: {title}</span>
+<div class="yt">
+  <a class="yt-btn" href={`https://www.youtube.com/watch?v=${id}`} data-yt={id} data-title={title} aria-label={`Play: ${title}`}>
+    <img src={`/yt/${id}.jpg`} alt="" width="480" height="360" loading="lazy" />
+    <span class="yt-play" aria-hidden="true"></span>
   </a>
-</lite-youtube>
+</div>
 
 <script>
-  // Registers the <lite-youtube> element once per page.
-  import 'lite-youtube-embed/src/lite-yt-embed.js';
+  import '../scripts/yt';
 </script>

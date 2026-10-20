@@ -33,10 +33,11 @@ const list = (await pages(DIST)).filter((p) => !redirects.includes(p));
 const server = createServer(async (req, res) => {
   let path = decodeURIComponent(req.url.split('?')[0]);
   if (path.endsWith('/')) path += 'index.html';
-  try {
-    res.writeHead(200, { 'Content-Type': TYPES[extname(path)] || 'application/octet-stream' });
-    res.end(await readFile(join(DIST, path)));
-  } catch { res.writeHead(404); res.end(); }
+  // Read first, then send headers, so a missing file is a clean 404.
+  let body;
+  try { body = await readFile(join(DIST, path)); } catch { res.writeHead(404); res.end(); return; }
+  res.writeHead(200, { 'Content-Type': TYPES[extname(path)] || 'application/octet-stream' });
+  res.end(body);
 }).listen(4399);
 
 // 3. Check each page in light and dark mode.

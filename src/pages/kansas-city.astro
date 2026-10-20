@@ -6,6 +6,7 @@
 // can read them; the charts are drawn in the browser from the same data.
 import Base from '../layouts/Base.astro';
 import stats from '../data/kc-stats.json';
+import { safeJson } from '../lib/safe-json';
 
 const { meta, months, days, monthly, yoy, hourDay, concentration: conc, neighborhoods: hoods } = stats as any;
 const cats: string[] = meta.categories;
@@ -252,7 +253,7 @@ const schema = {
 </Base>
 
 <!-- Chart data for the browser: only the aggregates the charts need. -->
-<script type="application/json" id="kc-data" set:html={JSON.stringify({ cats, short, groups, catGroup, groupColors: meta.groupColors, catColors: meta.catColors, months, days, monthly, hourDay })} />
+<script type="application/json" id="kc-data" set:html={safeJson({ cats, short, groups, catGroup, groupColors: meta.groupColors, catColors: meta.catColors, months, days, monthly, hourDay })} />
 
 <style>
   /* Charts use the same colorblind-safe crime colors as the map. */
@@ -267,11 +268,16 @@ const schema = {
 
   .filter { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; position: sticky; top: 3.9rem; z-index: 5; background: color-mix(in srgb, var(--paper) 94%, transparent); padding-block: 0.6rem; border-bottom: 1px solid var(--rule); }
   @media (max-width: 640px) { .filter { position: static; } }
-  .pick { display: inline-flex; align-items: center; gap: 0.6rem; min-width: 0; max-width: 100%; }
-  .pick select { font: 500 var(--t-sm)/1.2 var(--body); color: var(--ink); background: var(--card); border: 1px solid var(--ink-2); border-radius: var(--radius); padding: 0.45rem 0.5rem; max-width: 100%; min-width: 0; }
+  /* The selector grows to fit but never past the screen: on phones the
+     label stacks above it and the select takes the full width. */
+  .pick { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; min-width: 0; flex: 1 1 22rem; max-width: 40rem; }
+  .pick select { flex: 1 1 14rem; width: 100%; min-width: 0; max-width: 100%; font: 500 var(--t-sm)/1.2 var(--body); color: var(--ink); background: var(--card); border: 1px solid var(--ink-2); border-radius: var(--radius); padding: 0.45rem 0.5rem; text-overflow: ellipsis; }
   .pick-note { color: var(--ink-2); font-size: var(--t-xs); }
 
   .chart { margin: 0; display: grid; gap: 1rem; min-width: 0; }
+  /* Grid children default to min-width: auto, which lets an opened wide
+     table stretch the whole chart; 0 keeps the table scrolling in its box. */
+  .chart > * { min-width: 0; }
   .chart figcaption { display: grid; gap: 0.35rem; }
   .chart figcaption p { color: var(--ink-2); font-size: var(--t-sm); max-width: 72ch; }
   .chart h2 { font-size: var(--t-xl); }

@@ -9,6 +9,7 @@ import { episodes } from '../data/episodes';
 import { conversations } from '../data/talks';
 import { person, site } from '../data/site';
 import FieldMap from '../components/FieldMap.astro';
+import { safeJson } from '../lib/safe-json';
 import { coauthorLinks } from '../data/coauthor-links';
 import { fundingTotals, grants, outcomes, reports, sites } from '../data/fieldwork';
 
@@ -45,8 +46,10 @@ const linkFor = (name: string) => media[key(name)];
 
 // ── Link co-author names to their own pages ──────────────────
 // A hand-picked faculty page wins; otherwise their ORCID profile.
-const profileFor = (n: Node) => coauthorLinks[n.name] ?? (n.orcid ? `https://orcid.org/${n.orcid}` : null);
-const profileKind = (n: Node) => (coauthorLinks[n.name] ? 'Faculty page' : n.orcid ? 'ORCID' : null);
+// ORCID iDs come from OpenAlex; only well-formed ones (0000-0000-0000-000X) become links.
+const ORCID = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
+const profileFor = (n: Node) => coauthorLinks[n.name] ?? (n.orcid && ORCID.test(n.orcid) ? `https://orcid.org/${n.orcid}` : null);
+const profileKind = (n: Node) => (coauthorLinks[n.name] ? 'Faculty page' : n.orcid && ORCID.test(n.orcid) ? 'ORCID' : null);
 
 const connectors = (network.connectors as number[]).map((i) => nodes[i]);
 const maxB = Math.max(...connectors.map((n) => n.betweenness));
@@ -122,12 +125,12 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
       <div class="section-head">
         <p class="label">Collaboration network</p>
         <h2>Who the work is built with.</h2>
-        <p>Each dot is a co-author, sized by papers written together and colored by the theme you most often share. Lines join co-authors who also published with each other. Tap a dot for details.</p>
+        <p>Each dot is a co-author, sized by papers written together and colored by the theme you most often share. Lines join co-authors who also published with each other. Tap a dot for details, or use Tab and Enter; Escape clears.</p>
       </div>
 
       <div class="net-grid">
         <figure class="net" data-net>
-          <svg viewBox="0 0 1000 1000" role="img" aria-labelledby="net-desc">
+          <svg viewBox="0 0 1000 1000" role="group" aria-labelledby="net-desc">
             <desc id="net-desc">Co-author network of Grant Drawve: {meta.coauthors} co-authors in {network.groups} groups. Largest collaborators: {nodes.slice(0, 5).map((n) => `${n.name} (${n.papers} papers)`).join(', ')}. Main connectors are listed beside the chart.</desc>
             <g class="spokes">
               {nodes.map((n) => <line x1={network.self.x} y1={network.self.y} x2={n.x} y2={n.y} />)}
@@ -143,7 +146,8 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
             </g>
             <g class="nodes">
               {nodes.map((n, i) => (
-                <g class:list={['node', network.connectors.includes(i) && 'connector']} data-i={i} style={`--c: var(--th-${n.theme})`}>
+                <g class:list={['node', network.connectors.includes(i) && 'connector']} data-i={i} style={`--c: var(--th-${n.theme})`}
+                   tabindex="0" role="button" aria-label={`${n.name}, ${n.papers} paper${n.papers === 1 ? '' : 's'} together`}>
                   <circle cx={n.x} cy={n.y} r={radius(n.papers)} />
                   {labelled.has(i) && (
                     <text x={n.x} y={n.y + radius(n.papers) + 19}>{short(n.name)}</text>
@@ -189,6 +193,7 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
 
       <details class="more coauthors">
         <summary>All {meta.coauthors} co-authors as a list</summary>
+        <div class="tbl-scroll">
         <table>
           <thead><tr><th scope="col">Co-author</th><th scope="col">Latest institution</th><th scope="col">Papers</th><th scope="col">Main shared theme</th></tr></thead>
           <tbody>
@@ -202,6 +207,7 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
             ))}
           </tbody>
         </table>
+        </div>
       </details>
     </div>
   </section>
@@ -421,6 +427,16 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
   .self text { fill: var(--paper); font: 700 15px var(--mono); text-anchor: middle; }
   .node circle { fill: var(--c); stroke: var(--card); stroke-width: 1.5; cursor: pointer; transition: opacity 0.15s; }
   .node.connector circle { stroke: var(--ink); stroke-width: 2.5; }
+  .node { outline: none; }
+  /* Wide tables scroll inside their own box on phones, not the page. */
+  .tbl-scroll { overflow-x: auto; max-width: 100%; }
+  /* Funding totals: three big numbers don't fit side by side on small phones. */
+  @media (max-width: 480px) {
+    .figures.money { grid-template-columns: minmax(0, 1fr); }
+    .figures.money div + div { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); }
+  }
+  .node:focus-visible circle { stroke: var(--hot); stroke-width: 6; }
+  .node:focus-visible text { font-weight: 700; }
   .node text { fill: var(--ink); font: 500 18px var(--body); text-anchor: middle; paint-order: stroke; stroke: var(--card); stroke-width: 4px; pointer-events: none; }
   .net.focus .node { opacity: 0.18; }
   .net.focus .node.on { opacity: 1; }
@@ -467,7 +483,10 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
   .src { margin-top: 1.5rem; text-transform: none; letter-spacing: 0.02em; }
 </style>
 
-<script define:vars={{ nodes, edges, themeName, media: Object.fromEntries(nodes.map((n, i) => [i, linkFor(n.name) ?? null])), profiles: nodes.map((n) => (profileFor(n) ? { href: profileFor(n), kind: profileKind(n) } : null)), connectorIds: network.connectors }}>
+<!-- Network data for the browser, as escaped JSON (not define:vars). -->
+<script type="application/json" id="net-data" set:html={safeJson({ nodes, edges, themeName, media: Object.fromEntries(nodes.map((n, i) => [i, linkFor(n.name) ?? null])), profiles: nodes.map((n) => (profileFor(n) ? { href: profileFor(n), kind: profileKind(n) } : null)), connectorIds: network.connectors })} />
+<script is:inline>
+  const { nodes, edges, themeName, media, profiles, connectorIds } = JSON.parse(document.getElementById('net-data').textContent);
   const fig = document.querySelector('[data-net]');
   const info = document.querySelector('[data-info]');
   const ties = [...fig.querySelectorAll('.ties line')];
@@ -491,20 +510,30 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
     ties.forEach((l) => l.classList.toggle('on', +l.dataset.a === i || +l.dataset.b === i));
     const n = nodes[i], rank = connectorIds.indexOf(i);
     const m = media[i];
+    // Names, institutions, and links come from OpenAlex, so every value
+    // is escaped before it is inserted as HTML.
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
     info.innerHTML = `
       <p class="label">Co-author</p>
       <p class="info-name"></p>
       ${n.inst ? `<p class="info-meta info-inst"></p>` : ''}
-      <p class="info-meta">${n.papers} paper${n.papers === 1 ? '' : 's'} together · mostly ${themeName[n.theme]}</p>
+      <p class="info-meta">${Number(n.papers)} paper${n.papers === 1 ? '' : 's'} together · mostly ${esc(themeName[n.theme])}</p>
       <p class="info-meta">${nbrs[i].size} other co-author${nbrs[i].size === 1 ? '' : 's'} in common${rank >= 0 ? ` · connector #${rank + 1}` : ''}</p>
-      ${m ? `<p class="info-meta"><a href="${m.href}">${m.label} →</a></p>` : ''}
-      ${profiles[i] ? `<p class="info-meta"><a href="${profiles[i].href}" target="_blank" rel="noopener">${profiles[i].kind} ↗</a></p>` : ''}`;
+      ${m ? `<p class="info-meta"><a href="${esc(m.href)}">${esc(m.label)} →</a></p>` : ''}
+      ${profiles[i] ? `<p class="info-meta"><a href="${esc(profiles[i].href)}" target="_blank" rel="noopener">${esc(profiles[i].kind)} ↗</a></p>` : ''}`;
     info.querySelector('.info-name').textContent = n.name;
     // Institution names come from OpenAlex, so set them as text, not HTML.
     if (n.inst) info.querySelector('.info-inst').textContent = n.inst;
   }
 
-  groups.forEach((g) => g.addEventListener('click', (e) => { e.stopPropagation(); select(+g.dataset.i); }));
+  groups.forEach((g) => {
+    g.addEventListener('click', (e) => { e.stopPropagation(); select(+g.dataset.i); });
+    // Keyboard: Enter or Space selects, the same as a click.
+    g.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(+g.dataset.i); }
+    });
+  });
+  fig.addEventListener('keydown', (e) => { if (e.key === 'Escape') clear(); });
   fig.querySelector('svg').addEventListener('click', clear);
 
   // Legend: show one theme at a time.

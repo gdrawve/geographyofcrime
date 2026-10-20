@@ -27,6 +27,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Video thumbnails are saved to the site so pages never contact
+      # YouTube before someone presses play.
+      - name: Video thumbnails
+        run: node scripts/fetch_thumbs.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       # Share images (Open Graph cards) for every page, drawn into dist/og/.

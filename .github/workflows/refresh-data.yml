@@ -48,6 +48,8 @@ jobs:
           grep -v '^::warning::' err.log | tail -n 12 | while IFS= read -r line; do echo "::notice::$line"; done
       # Dead YouTube videos and outside links show as warnings on this
       # run's summary page. Never fails the run.
+      - name: Video upload dates (for search structured data)
+        run: node scripts/fetch_video_dates.mjs || echo "::warning::Video dates could not be fetched"
       - name: Check for broken links
         run: python scripts/check_links.py || echo "::warning::Link check could not run"
       - name: Commit if changed, then deploy
@@ -57,6 +59,7 @@ jobs:
           # Stage first so brand-new files (like a first basemap) count.
           git add public/data src/data/research.json
           if [ -f src/data/kc-stats.json ]; then git add src/data/kc-stats.json; fi
+          git add src/data/video-dates.json
           if git diff --cached --quiet; then
             echo "No change in data."
             exit 0

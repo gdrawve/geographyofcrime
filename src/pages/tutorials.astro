@@ -1,10 +1,10 @@
 ---
+import { videoObject } from '../lib/video-schema';
 // The tutorial library. 80+ videos as a scannable, filterable list.
 // Videos load only when a row is opened, so the page stays fast.
 import Base from '../layouts/Base.astro';
 import { tutorials, tracks } from '../data/tutorials';
 import { site } from '../data/site';
-import 'lite-youtube-embed/src/lite-yt-embed.css';
 
 const groups = tracks.map((t) => ({ ...t, items: tutorials.filter((x) => x.track === t.id) }));
 
@@ -18,14 +18,12 @@ const schema = {
   itemListElement: tutorials.map((t, i) => ({
     '@type': 'ListItem',
     position: i + 1,
-    item: {
-      '@type': 'VideoObject',
-      name: t.title,
-      description: `${t.title}: a ${tracks.find((x) => x.id === t.track)!.label} tutorial for crime analysts by Grant Drawve, PhD.`,
-      thumbnailUrl: `https://i.ytimg.com/vi/${t.youtube}/hqdefault.jpg`,
-      contentUrl: `https://www.youtube.com/watch?v=${t.youtube}`,
-      author: { '@id': `${site.url}/#grant-drawve` },
-    },
+    // A full VideoObject when the upload date is known; otherwise just
+    // the video's name and link (no guessed dates).
+    item: videoObject(t.youtube, t.title,
+      `${t.title}: a ${tracks.find((x) => x.id === t.track)!.label} tutorial for crime analysts by Grant Drawve, PhD.`,
+      { author: { '@id': `${site.url}/#grant-drawve` } })
+      ?? { '@type': 'CreativeWork', name: t.title, url: `https://www.youtube.com/watch?v=${t.youtube}` },
   })),
 };
 ---
@@ -117,18 +115,14 @@ const schema = {
 </style>
 
 <script>
-  import 'lite-youtube-embed/src/lite-yt-embed.js';
+  import { facade } from '../scripts/yt';
 
-  // Insert the video only when a row is opened.
+  // Insert the video slot only when a row is opened.
   document.querySelectorAll<HTMLDetailsElement>('details[data-yt]').forEach((d) =>
     d.addEventListener('toggle', () => {
       const slot = d.querySelector('.tut-video')!;
-      if (!d.open || slot.querySelector('lite-youtube')) return;
-      const el = document.createElement('lite-youtube');
-      el.setAttribute('videoid', d.dataset.yt!);
-      el.setAttribute('playlabel', `Play: ${d.dataset.title}`);
-      el.setAttribute('params', 'rel=0');
-      slot.prepend(el);
+      if (!d.open || slot.querySelector('.yt')) return;
+      slot.prepend(facade(d.dataset.yt!, d.dataset.title || 'Tutorial video'));
     }),
   );
 

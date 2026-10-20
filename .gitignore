@@ -3,3 +3,6 @@ dist/
 .astro/
 .DS_Store
 scripts/__pycache__/
+
+# Video thumbnails, fetched at deploy time (scripts/fetch_thumbs.mjs)
+public/yt/

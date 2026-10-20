@@ -2,8 +2,17 @@
 // The frame every page sits in: <head> tags, header, footer, and
 // the schema.org identity block that tells search engines and AI
 // tools who runs this site.
+// Fonts are served from this site (Fontsource packages), not Google
+// Fonts, so visiting the site doesn't send anything to Google.
+import '@fontsource-variable/archivo/wdth.css';
+import '@fontsource-variable/public-sans/index.css';
+import '@fontsource-variable/public-sans/wght-italic.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '@fontsource/cinzel/600.css';
 import '../styles/global.css';
 import { site, person, nav } from '../data/site';
+import { safeJson } from '../lib/safe-json';
 
 interface Props {
   title?: string;            // page name; site name is appended
@@ -78,14 +87,7 @@ const ld = [personLd, websiteLd, ...extra];
     <link rel="alternate" type="application/rss+xml" title="The Geography of Crime podcast" href="/podcast/rss.xml" />
     <link rel="sitemap" href="/sitemap-index.xml" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Cinzel:wght@600&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:ital,wght@0,400..700;1,400&display=swap"
-    />
-
-    {ld.map((block) => <script type="application/ld+json" set:html={JSON.stringify(block)} />)}
+    {ld.map((block) => <script type="application/ld+json" set:html={safeJson(block)} />)}
 
     {/* Visitor statistics: Cloudflare Web Analytics, no cookies, no personal data. */}
     {site.cloudflareAnalyticsToken && (
