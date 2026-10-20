@@ -116,11 +116,30 @@ const ld = [personLd, websiteLd, ...extra];
           <p class="foot-line">This is a personal site. Views are my own and do not represent CAP Index.</p>
         </div>
         </div>
-        <ul class="foot-links">
-          {person.profiles.map((p) => <li><a href={p.url} rel="me noopener" target="_blank">{p.label}</a></li>)}
-          <li><a href="/podcast/rss.xml">Podcast RSS</a></li>
-        </ul>
-        <p class="label foot-copy">© {new Date().getFullYear()} Grant Drawve · <a href="/privacy/">Privacy</a> · <a href="/accessibility/">Accessibility</a></p>
+        <nav class="foot-cols" aria-label="Footer">
+          <div>
+            <p class="label">Research</p>
+            <ul>
+              {person.profiles.filter((p) => /Scholar|ResearchGate|ORCID|LinkedIn/.test(p.label)).map((p) => <li><a href={p.url} rel="me noopener" target="_blank">{p.label}</a></li>)}
+            </ul>
+          </div>
+          <div>
+            <p class="label">Watch &amp; listen</p>
+            <ul>
+              {person.profiles.filter((p) => /YouTube/.test(p.label)).map((p) => <li><a href={p.url} rel="me noopener" target="_blank">{p.label.replace(' (YouTube)', '')}</a></li>)}
+              <li><a href="/podcast/rss.xml">Podcast RSS</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="label">Site</p>
+            <ul>
+              <li><a href="/about/">About</a></li>
+              <li><a href="/privacy/">Privacy</a></li>
+              <li><a href="/accessibility/">Accessibility</a></li>
+            </ul>
+          </div>
+        </nav>
+        <p class="label foot-copy">© {new Date().getFullYear()} Grant Drawve</p>
       </div>
     </footer>
   </body>
@@ -194,6 +213,8 @@ const ld = [personLd, websiteLd, ...extra];
   .foot-id { display: flex; gap: 1rem; align-items: center; min-width: 0; }
   .foot-badge { width: 80px; height: 80px; flex: none; }
   .foot-line { color: var(--ink-2); font-size: var(--t-sm); }
-  .foot-links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: var(--t-sm); align-content: start; }
+  .foot-cols { display: grid; grid-template-columns: repeat(3, minmax(0, max-content)); gap: 1.25rem 2.5rem; align-content: start; }
+  @media (max-width: 520px) { .foot-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .foot-cols ul { list-style: none; margin: 0.45rem 0 0; padding: 0; display: grid; gap: 0.35rem; font-size: var(--t-sm); }
   .foot-copy { grid-column: 1 / -1; }
 </style>

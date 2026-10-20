@@ -165,6 +165,16 @@ const schema = {
           </ol>
         </div>
       </div>
+      <div class="pets">
+        <figure>
+          <img src="/brand/dogs-basil-dorothy-960.webp" srcset="/brand/dogs-basil-dorothy-480.webp 480w, /brand/dogs-basil-dorothy-960.webp 960w" sizes="(min-width: 760px) 50vw, 100vw" alt="Basil, a black-and-white beagle mix, and Dorothy, a small scruffy grey mutt, curled up in dog beds in their built-in nook" width="960" height="720" loading="lazy" />
+          <figcaption class="label">Basil (left) and Dorothy, off duty</figcaption>
+        </figure>
+        <figure>
+          <img src="/brand/dog-gambit-960.webp" srcset="/brand/dog-gambit-480.webp 480w, /brand/dog-gambit-960.webp 960w" sizes="(min-width: 760px) 50vw, 100vw" alt="Gambit, a grey-and-white laika, sitting on a gravel bank beside a tree-lined river" width="960" height="720" loading="lazy" />
+          <figcaption class="label">Gambit, scouting the river</figcaption>
+        </figure>
+      </div>
     </div>
   </section>
 
@@ -209,6 +219,9 @@ const schema = {
   .links a { display: flex; justify-content: space-between; gap: 1rem; padding: 0.85rem 0.25rem; border-bottom: 1px solid var(--rule); text-decoration: none; font-weight: 500; }
   .links a:hover { background: var(--paper-2); }
   .life { display: grid; gap: 2rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+  .pets { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); margin-top: 2rem; }
+  .pets figure { margin: 0; display: grid; gap: 0.5rem; }
+  .pets img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); }
   .dogs { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.3rem; }
   .dogs span { color: var(--ink-2); font-size: var(--t-sm); }
 </style>

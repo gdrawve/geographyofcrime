@@ -5,7 +5,6 @@
 // ─────────────────────────────────────────────────────────────
 
 export const talks = [
-  { kind: 'Talk', title: 'Introduction to the Geography of Crime podcast and background', venue: 'Analyst Talk', youtube: 'yrVil7Oi054' },
   { kind: 'Series', title: 'Retail Crime Uncovered, part 1', venue: 'Retail Crime Uncovered', youtube: 'kE_FTHnzTO8' },
   { kind: 'Series', title: 'Retail Crime Uncovered, part 2', venue: 'Retail Crime Uncovered', youtube: 'jB8hrKC1PI0' },
   { kind: 'Series', title: 'Retail Crime Uncovered, part 3', venue: 'Retail Crime Uncovered', youtube: 'h6NBhbOUMI4' },
