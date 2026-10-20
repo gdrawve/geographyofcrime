@@ -221,8 +221,8 @@ def resolve_fields(cfg: dict, ds: str) -> dict | None:
                 break
     missing = [k for k in ("date", "point", "offense") if k not in out]
     if missing:
-        print(f"  columns available: {', '.join(sorted(sample[0]))}", file=sys.stderr)
-        print(f"  could not find: {', '.join(missing)}", file=sys.stderr)
+        # One warning line with everything needed to fix the mapping.
+        print(f"::warning::{ds}: could not find {', '.join(missing)}; columns are: {', '.join(sorted(sample[0]))}", file=sys.stderr)
         return None
     return out
 
@@ -235,18 +235,22 @@ def fetch_socrata_yearly(cfg: dict, since: date) -> list[dict]:
     than failing the whole refresh.
     """
     rows = []
+    fetch_socrata_yearly.skipped = []
     for year in range(since.year, date.today().year + 1):
         ds = find_yearly_dataset(cfg, year)
         if not ds:
             print(f"::warning::No KCPD dataset found for {year}", file=sys.stderr)
+            fetch_socrata_yearly.skipped.append(year)
             continue
         try:
             f = resolve_fields(cfg, ds)
         except urllib.error.HTTPError as err:
             print(f"::warning::{year} ({ds}): could not read a sample row ({err})", file=sys.stderr)
+            fetch_socrata_yearly.skipped.append(year)
             continue
         if not f:
             print(f"::warning::{year} ({ds}): column names did not match; skipped", file=sys.stderr)
+            fetch_socrata_yearly.skipped.append(year)
             continue
         offset, n_year = 0, 0
         try:
@@ -270,6 +274,7 @@ def fetch_socrata_yearly(cfg: dict, since: date) -> list[dict]:
         except urllib.error.HTTPError as err:
             body = err.read().decode("utf-8", "replace")[:300] if hasattr(err, "read") else ""
             print(f"::warning::{year} ({ds}): query failed ({err}) {body}", file=sys.stderr)
+            fetch_socrata_yearly.skipped.append(year)
             continue
         print(f"  {year}: {n_year:,} rows", file=sys.stderr)
     return rows
@@ -523,6 +528,10 @@ def main():
             incidents.append((lat, lon, categorize(r.get(f["offense"]), cfg.get("offense_is_nibrs", False)),
                               band_of(when.hour), int(when.weekday() >= 5), when))
         print(f"Kept {len(incidents):,} incidents, dropped {dropped:,}", file=sys.stderr)
+        if getattr(fetch_socrata_yearly, "skipped", None):
+            # A missing year would show as a false crime drop. Keep last week's files.
+            print(f"::warning::Skipped years {fetch_socrata_yearly.skipped}; kept last week's data.", file=sys.stderr)
+            sys.exit(0)
         if len(incidents) < 100:
             # Safety net: never replace good data with a near-empty pull.
             sys.exit("Too few incidents returned; keeping the existing file.")

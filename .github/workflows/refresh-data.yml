@@ -51,7 +51,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Stage first so brand-new files (like a first basemap) count.
-          git add public/data/crime-grid.json public/data/crime-bg.json public/data/places.json src/data/research.json src/data/kc-stats.json
+          git add public/data src/data/research.json
+          if [ -f src/data/kc-stats.json ]; then git add src/data/kc-stats.json; fi
           if git diff --cached --quiet; then
             echo "No change in data."
             exit 0
