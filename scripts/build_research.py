@@ -83,6 +83,10 @@ THEME_OVERRIDES: dict[str, str] = {
 # ─────────────────────────────────────────────────────────────────────
 # 2. GETTING THE DATA
 # ─────────────────────────────────────────────────────────────────────
+# name → {"orcid", "inst", "year"} for every author seen in OpenAlex.
+PEOPLE: dict[str, dict] = {}
+
+
 def fetch_openalex() -> list[dict]:
     """
     OpenAlex returns 200 works per page. "cursor" paging hands back a
@@ -101,6 +105,23 @@ def fetch_openalex() -> list[dict]:
         with urllib.request.urlopen(url, timeout=60) as r:
             page = json.load(r)
         for w in page["results"]:
+            # Remember each co-author's ORCID and institution. The most
+            # recent paper wins, so the institution is the latest known.
+            for a in w.get("authorships", []):
+                au = a.get("author") or {}
+                name, year = au.get("display_name"), w.get("publication_year") or 0
+                if not name:
+                    continue
+                prev = PEOPLE.get(name)
+                inst = next((i.get("display_name") for i in a.get("institutions") or [] if i.get("display_name")), None)
+                if prev is None or year >= prev["year"]:
+                    PEOPLE[name] = {
+                        "year": year,
+                        "orcid": (au.get("orcid") or (prev or {}).get("orcid") or "").replace("https://orcid.org/", "") or None,
+                        "inst": inst or (prev or {}).get("inst"),
+                    }
+                elif not prev.get("orcid") and au.get("orcid"):
+                    prev["orcid"] = au["orcid"].replace("https://orcid.org/", "")
             works.append({
                 "title": (w.get("title") or "").strip(),
                 "year": w.get("publication_year"),
@@ -221,6 +242,9 @@ def build_network(works: list[dict]) -> dict:
         "papers": papers[n],
         "theme": themes[n].most_common(1)[0][0],
         "betweenness": round(between.get(n, 0), 4),
+        # From OpenAlex; empty when building from the offline snapshot.
+        "orcid": (PEOPLE.get(n) or {}).get("orcid"),
+        "inst": (PEOPLE.get(n) or {}).get("inst"),
         "x": sx(pos[n][0]), "y": sy(pos[n][1]),
     } for n in names]
     edges = [[index[a], index[b], n] for (a, b), n in ties.items()]

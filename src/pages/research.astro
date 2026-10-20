@@ -9,10 +9,11 @@ import { episodes } from '../data/episodes';
 import { conversations } from '../data/talks';
 import { person, site } from '../data/site';
 import FieldMap from '../components/FieldMap.astro';
+import { coauthorLinks } from '../data/coauthor-links';
 import { fundingTotals, grants, outcomes, reports, sites } from '../data/fieldwork';
 
 type Work = { title: string; year: number; cited: number; type: string; doi: string | null; theme: string; authors: string[] };
-type Node = { name: string; papers: number; theme: string; betweenness: number; x: number; y: number };
+type Node = { name: string; papers: number; theme: string; betweenness: number; x: number; y: number; orcid?: string | null; inst?: string | null };
 const { meta, network } = research;
 const works = research.works as Work[];
 const nodes = network.nodes as Node[];
@@ -41,6 +42,11 @@ for (const e of [...episodes].reverse())
   for (const g of e.guests) media[key(g)] ??= { label: `Podcast, Ep. ${e.number}`, href: `/podcast/${e.slug}/` };
 for (const c of conversations) media[key(c.guest)] ??= { label: 'Conversation', href: '/talks/' };
 const linkFor = (name: string) => media[key(name)];
+
+// ── Link co-author names to their own pages ──────────────────
+// A hand-picked faculty page wins; otherwise their ORCID profile.
+const profileFor = (n: Node) => coauthorLinks[n.name] ?? (n.orcid ? `https://orcid.org/${n.orcid}` : null);
+const profileKind = (n: Node) => (coauthorLinks[n.name] ? 'Faculty page' : n.orcid ? 'ORCID' : null);
 
 const connectors = (network.connectors as number[]).map((i) => nodes[i]);
 const maxB = Math.max(...connectors.map((n) => n.betweenness));
@@ -169,7 +175,7 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
               {connectors.map((n) => (
                 <li>
                   <div class="conn-row">
-                    <span class="conn-name">{n.name}</span>
+                    <span class="conn-name">{profileFor(n) ? <a href={profileFor(n)} target="_blank" rel="noopener">{n.name}</a> : n.name}</span>
                     <span class="label">{n.papers} papers</span>
                   </div>
                   <span class="bar" style={`--w: ${(n.betweenness / maxB) * 100}%; --c: var(--th-${n.theme})`} aria-hidden="true"></span>
@@ -184,11 +190,12 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
       <details class="more coauthors">
         <summary>All {meta.coauthors} co-authors as a list</summary>
         <table>
-          <thead><tr><th scope="col">Co-author</th><th scope="col">Papers</th><th scope="col">Main shared theme</th></tr></thead>
+          <thead><tr><th scope="col">Co-author</th><th scope="col">Latest institution</th><th scope="col">Papers</th><th scope="col">Main shared theme</th></tr></thead>
           <tbody>
             {nodes.map((n) => (
               <tr>
-                <td>{n.name}{linkFor(n.name) && <> · <a href={linkFor(n.name)!.href}>{linkFor(n.name)!.label}</a></>}</td>
+                <td>{profileFor(n) ? <a href={profileFor(n)} target="_blank" rel="noopener" title={profileKind(n)}>{n.name}</a> : n.name}{linkFor(n.name) && <> · <a href={linkFor(n.name)!.href}>{linkFor(n.name)!.label}</a></>}</td>
+                <td>{n.inst ?? '–'}</td>
                 <td class="num">{n.papers}</td>
                 <td>{themeName[n.theme]}</td>
               </tr>
@@ -460,7 +467,7 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
   .src { margin-top: 1.5rem; text-transform: none; letter-spacing: 0.02em; }
 </style>
 
-<script define:vars={{ nodes, edges, themeName, media: Object.fromEntries(nodes.map((n, i) => [i, linkFor(n.name) ?? null])), connectorIds: network.connectors }}>
+<script define:vars={{ nodes, edges, themeName, media: Object.fromEntries(nodes.map((n, i) => [i, linkFor(n.name) ?? null])), profiles: nodes.map((n) => (profileFor(n) ? { href: profileFor(n), kind: profileKind(n) } : null)), connectorIds: network.connectors }}>
   const fig = document.querySelector('[data-net]');
   const info = document.querySelector('[data-info]');
   const ties = [...fig.querySelectorAll('.ties line')];
@@ -487,10 +494,14 @@ const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US',
     info.innerHTML = `
       <p class="label">Co-author</p>
       <p class="info-name"></p>
+      ${n.inst ? `<p class="info-meta info-inst"></p>` : ''}
       <p class="info-meta">${n.papers} paper${n.papers === 1 ? '' : 's'} together · mostly ${themeName[n.theme]}</p>
       <p class="info-meta">${nbrs[i].size} other co-author${nbrs[i].size === 1 ? '' : 's'} in common${rank >= 0 ? ` · connector #${rank + 1}` : ''}</p>
-      ${m ? `<p class="info-meta"><a href="${m.href}">${m.label} →</a></p>` : ''}`;
+      ${m ? `<p class="info-meta"><a href="${m.href}">${m.label} →</a></p>` : ''}
+      ${profiles[i] ? `<p class="info-meta"><a href="${profiles[i].href}" target="_blank" rel="noopener">${profiles[i].kind} ↗</a></p>` : ''}`;
     info.querySelector('.info-name').textContent = n.name;
+    // Institution names come from OpenAlex, so set them as text, not HTML.
+    if (n.inst) info.querySelector('.info-inst').textContent = n.inst;
   }
 
   groups.forEach((g) => g.addEventListener('click', (e) => { e.stopPropagation(); select(+g.dataset.i); }));
