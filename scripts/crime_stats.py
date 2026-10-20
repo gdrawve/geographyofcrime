@@ -134,7 +134,10 @@ def build(incidents: list[tuple], categories: list[str], recent_from: datetime,
             if not total:
                 continue
             ctr = b["geom"].representative_point()
-            top = max(range(nc), key=lambda c: by[c])
+            # Most common NAMED type: "Other" (the last category) is a
+            # catch-all, so it is skipped when anything else was recorded.
+            named = range(nc - 1) if sum(by[:-1]) else range(nc)
+            top = max(named, key=lambda c: by[c])
             rows.append({
                 "id": b["id"],
                 "near": nearest(ctr.y, ctr.x),
@@ -143,6 +146,7 @@ def build(incidents: list[tuple], categories: list[str], recent_from: datetime,
                 "rate": round(1000 * total / b["pop"], 1) if b["pop"] else None,
                 "topCat": top,
                 "topShare": round(100 * by[top] / total),
+                "byCat": by,
             })
         by_count = sorted(rows, key=lambda r: -r["total"])[:10]
         by_rate = sorted((r for r in rows if r["pop"] and r["pop"] >= MIN_POP_FOR_RANK),
