@@ -28,8 +28,8 @@ jobs:
         run: pip install networkx==3.4.2 shapely==2.0.6 pyshp==2.3.1
       - name: Refresh publications from OpenAlex
         run: python scripts/build_research.py
-      - name: Basemap from OpenStreetMap
-        run: python scripts/build_basemap.py || echo "::warning::Basemap refresh failed; keeping the last one"
+      - name: Neighborhood names from OpenStreetMap
+        run: python scripts/build_basemap.py || echo "::warning::Place names refresh failed; keeping the last ones"
       - name: Build grid from city API
         env:
           SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
@@ -48,7 +48,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Stage first so brand-new files (like a first basemap) count.
-          git add public/data/crime-grid.json public/data/crime-bg.json public/data/basemap.json src/data/research.json
+          git add public/data/crime-grid.json public/data/crime-bg.json public/data/places.json src/data/research.json
           if git diff --cached --quiet; then
             echo "No change in data."
             exit 0

@@ -74,13 +74,10 @@ CITY = {
     },
     "offense_is_nibrs": True,
 
-    # Map extent: [west, south, east, north]. Zoomed to central Kansas
-    # City, where most incidents are: State Line Road east to about
-    # I-435, and the Missouri River south to about Bannister Road.
-    # The Northland and far south are left out on purpose. For the
-    # whole city use [-94.62, 38.81, -94.37, 39.36].
-    "bbox": [-94.61, 38.92, -94.43, 39.13],
-    "extent_note": "Central Kansas City, south of the Missouri River",
+    # Map extent: [west, south, east, north]. The whole city; the map
+    # can pan and zoom, and it opens on the urban core.
+    "bbox": [-94.62, 38.81, -94.37, 39.36],
+    "extent_note": "Kansas City, Missouri",
 
     # How many months back to pull.
     "months": 12,
@@ -100,21 +97,27 @@ CITY = {
 # When a city publishes NIBRS codes, we categorize by code instead of by
 # keyword. Codes come from the FBI's NIBRS offense list.
 NIBRS = {
-    "Violent":  {"09A", "09B", "09C", "100", "11A", "11B", "11C", "11D", "120", "13A", "13B", "13C"},
-    "Vehicle":  {"240", "23F", "23G"},   # vehicle theft, theft from and of parts
-    "Burglary": {"220"},
-    "Theft":    {"23A", "23B", "23C", "23D", "23E", "23H"},
+    "Violent":   {"09A", "09B", "09C", "100", "11A", "11B", "11C", "11D", "120", "13A", "13B", "13C", "36A", "36B", "64A", "64B"},
+    "Vehicle":   {"240", "23F", "23G"},   # vehicle theft, theft from and of parts
+    "Burglary":  {"220"},
+    "Theft":     {"23A", "23B", "23C", "23D", "23E", "23H"},
+    "Vandalism": {"290"},                 # destruction / damage / vandalism of property
+    "Drugs & weapons": {"35A", "35B", "520"},
+    "Fraud":     {"26A", "26B", "26C", "26D", "26E", "26F", "26G", "26H", "250", "270"},
 }
 
 # Offense → category. Matching is by keyword, case-insensitive, so
 # "MOTOR VEHICLE THEFT" matches "VEHICLE" before it matches "THEFT".
 # Order matters: the FIRST category with a matching keyword wins.
 CATEGORIES = [
-    ("Violent",  ["HOMICIDE", "MURDER", "ASSAULT", "BATTERY", "ROBBERY", "SEXUAL", "RAPE", "KIDNAP"]),
-    ("Vehicle",  ["MOTOR VEHICLE", "VEHICLE THEFT", "AUTO THEFT", "CARJACK"]),
-    ("Burglary", ["BURGLARY", "BREAKING", "B&E"]),
-    ("Theft",    ["THEFT", "LARCENY", "SHOPLIFT", "PICKPOCKET"]),
-    ("Other",    []),  # everything that matched nothing above
+    ("Violent",   ["HOMICIDE", "MURDER", "ASSAULT", "BATTERY", "ROBBERY", "SEXUAL", "RAPE", "KIDNAP"]),
+    ("Vehicle",   ["MOTOR VEHICLE", "VEHICLE THEFT", "AUTO THEFT", "CARJACK"]),
+    ("Burglary",  ["BURGLARY", "BREAKING", "B&E"]),
+    ("Theft",     ["THEFT", "LARCENY", "SHOPLIFT", "PICKPOCKET"]),
+    ("Vandalism", ["VANDALISM", "DESTRUCTION", "DAMAGE", "CRIMINAL DAMAGE"]),
+    ("Drugs & weapons", ["NARCOTIC", "DRUG", "WEAPON"]),
+    ("Fraud",     ["FRAUD", "FORGERY", "COUNTERFEIT", "EMBEZZLE", "DECEPTIVE", "IDENTITY"]),
+    ("Other",     []),  # everything that matched nothing above
 ]
 
 # Time-of-day bands (24-hour clock, start inclusive, end exclusive).

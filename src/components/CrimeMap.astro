@@ -1,0 +1,525 @@
+---
+// The home-page crime map. A pan-and-zoom map (MapLibre, with free
+// OpenStreetMap streets from OpenFreeMap) of a year of police-reported
+// incidents, plus a takeaways panel that rewrites itself for every
+// filter. Views:
+//   Hexagons      → H3 hexagons, colored by the main crime type (or by count)
+//   Hot spots     → a smooth heat surface
+//   Points        → incidents shown as dots, snapped to 150 m cells
+//   Neighborhoods → Census block groups, counts or rates per 1,000
+//
+// Data: /data/crime-grid.json, /data/crime-bg.json, /data/places.json,
+// built weekly by scripts/. Only aggregated counts are published.
+import 'maplibre-gl/dist/maplibre-gl.css';
+---
+<section class="crime-map" aria-label="Kansas City crime map">
+  <div class="cm-controls wrap">
+    <div class="seg" role="group" aria-label="Map view">
+      <button type="button" data-mode="hex" aria-pressed="true">Hexagons</button>
+      <button type="button" data-mode="heat" aria-pressed="false">Hot spots</button>
+      <button type="button" data-mode="points" aria-pressed="false">Points</button>
+      <button type="button" data-mode="bg" aria-pressed="false">Neighborhoods</button>
+    </div>
+    <div class="chips" role="group" aria-label="Crime types (also the map legend)" data-cats></div>
+    <div class="selects">
+      <label class="sel"><span class="label">Time</span>
+        <select id="cm-band" data-band><option value="-1">All day</option></select>
+      </label>
+      <label class="sel"><span class="label">Days</span>
+        <select id="cm-days" data-days>
+          <option value="-1">All week</option>
+          <option value="0">Weekdays</option>
+          <option value="1">Weekends</option>
+        </select>
+      </label>
+      <label class="sel" data-color-wrap><span class="label">Color by</span>
+        <select id="cm-color" data-color>
+          <option value="type">Main crime type</option>
+          <option value="count">Number of incidents</option>
+        </select>
+      </label>
+      <label class="sel" data-measure-wrap hidden><span class="label">Show</span>
+        <select id="cm-measure" data-measure>
+          <option value="count">Count</option>
+          <option value="rate">Per 1,000 residents</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="cm-body">
+    <div class="cm-map-wrap">
+      <div class="cm-map" data-map role="region" aria-label="Interactive map of Kansas City crime. The key findings are listed beside the map."></div>
+      <p class="cm-key label" data-key></p>
+    </div>
+
+    <aside class="cm-panel" aria-live="polite">
+      <p class="label" data-title>Loading a year of Kansas City data…</p>
+
+      <div class="tk">
+        <p class="tk-big" data-share>–</p>
+        <p class="tk-text" data-share-text></p>
+      </div>
+
+      <div class="tk">
+        <p class="label">When it happens</p>
+        <div class="bars" data-bars></div>
+        <p class="tk-text" data-time-text></p>
+      </div>
+
+      <div class="tk">
+        <p class="label">What happens</p>
+        <div class="mix" data-mix></div>
+        <p class="tk-text" data-mix-text></p>
+      </div>
+
+      <div class="tk">
+        <p class="label">Busiest hexagons <span data-hot-note></span></p>
+        <ol class="hot" data-hot></ol>
+      </div>
+
+      <div class="tk detail" data-detail hidden></div>
+
+      <p class="label src" data-src-line></p>
+    </aside>
+  </div>
+</section>
+
+<style>
+  .crime-map { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); background: var(--card); }
+  .cm-controls { display: flex; flex-wrap: wrap; gap: 0.6rem 1.25rem; align-items: center; padding-block: 0.8rem; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
+  .seg button { font: 500 var(--t-xs)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 0.7rem; background: var(--card); color: var(--ink-2); border: 0; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button[aria-pressed='true'] { background: var(--ink); color: var(--paper); }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .chips :global(button) {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font: 500 var(--t-xs)/1 var(--body); padding: 0.42rem 0.65rem; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--rule); background: var(--card); color: var(--ink-2);
+  }
+  .chips :global(button) :global(i) { width: 0.7rem; height: 0.7rem; border-radius: 2px; background: var(--c); opacity: 0.3; }
+  .chips :global(button[aria-pressed='true']) { color: var(--ink); border-color: var(--ink-2); }
+  .chips :global(button[aria-pressed='true']) :global(i) { opacity: 1; }
+  .selects { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .sel { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .sel select { font: 500 var(--t-xs)/1 var(--body); color: var(--ink); background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 0.38rem 0.4rem; }
+
+  .cm-body { display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--rule); }
+  @media (min-width: 1100px) { .cm-body { grid-template-columns: minmax(0, 1fr) 23rem; } }
+  .cm-map-wrap { position: relative; min-width: 0; }
+  .cm-map { height: clamp(26rem, 68vh, 46rem); width: 100%; background: var(--paper-2); }
+  .cm-key { position: absolute; left: 0.6rem; top: 0.6rem; margin: 0; background: var(--card); padding: 0.4rem 0.55rem; border: 1px solid var(--rule); border-radius: var(--radius); text-transform: none; letter-spacing: 0.02em; max-width: calc(100% - 4rem); }
+
+  .cm-panel { display: grid; gap: 1.1rem; align-content: start; padding: 1.1rem 1.25rem 1.25rem; border-left: 1px solid var(--rule); min-width: 0; }
+  @media (max-width: 1099px) { .cm-panel { border-left: 0; border-top: 1px solid var(--rule); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
+  .tk { display: grid; gap: 0.4rem; }
+  .tk + .tk { border-top: 1px solid var(--rule); padding-top: 1rem; }
+  .tk-big { font-family: var(--display); font-stretch: 112%; font-weight: 800; font-size: 2.3rem; line-height: 1; color: var(--hot-ink); font-variant-numeric: tabular-nums; }
+  .tk-text { font-size: var(--t-sm); color: var(--ink-2); }
+  .tk-text :global(strong) { color: var(--ink); }
+
+  .bars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.4rem; height: 6.2rem; }
+  .bars :global(div) { display: flex; flex-direction: column; justify-content: flex-end; gap: 0.2rem; height: 100%; }
+  .bars :global(b) { display: block; flex: none; background: var(--ink-2); opacity: 0.35; border-radius: 2px 2px 0 0; min-height: 2px; }
+  .bars :global(div.peak b) { background: var(--hot); opacity: 1; }
+  .bars :global(span) { font: 500 0.66rem/1.1 var(--mono); color: var(--ink-2); text-align: center; text-transform: uppercase; letter-spacing: 0.03em; }
+
+  .mix { display: flex; height: 0.85rem; border-radius: 3px; overflow: hidden; background: var(--paper-2); }
+  .mix :global(span) { background: var(--c); height: 100%; }
+
+  .hot { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+  .hot :global(button) {
+    width: 100%; display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) auto; gap: 0.5rem; align-items: baseline; text-align: left;
+    font: 500 var(--t-sm)/1.3 var(--body); color: var(--ink); background: transparent; border: 0; border-bottom: 1px solid var(--rule); padding: 0.45rem 0; cursor: pointer;
+  }
+  .hot :global(button:hover) { color: var(--hot-ink); }
+  .hot :global(.n) { font-family: var(--mono); font-size: var(--t-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .hot :global(.rk) { font-family: var(--mono); font-size: var(--t-xs); color: var(--hot-ink); }
+  .hot :global(.ty) { display: block; font-size: var(--t-xs); color: var(--ink-2); font-weight: 400; }
+
+  .detail { background: var(--paper-2); border-radius: var(--radius); padding: 0.8rem 0.9rem; border-top: 0 !important; }
+  .detail :global(ul) { list-style: none; margin: 0.3rem 0 0; padding: 0; display: grid; gap: 0.25rem; font-size: var(--t-sm); }
+  .detail :global(li) { display: flex; justify-content: space-between; gap: 1rem; }
+  .detail :global(li i) { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 2px; background: var(--c); margin-right: 0.35rem; }
+  .detail :global(.close) { float: right; font: 500 var(--t-xs)/1 var(--mono); background: none; border: 0; color: var(--ink-2); cursor: pointer; text-transform: uppercase; }
+  .src { text-transform: none; letter-spacing: 0.02em; font-size: 0.68rem; line-height: 1.5; }
+  .src :global(a) { color: inherit; }
+
+  /* MapLibre controls in the site's palette */
+  .cm-map :global(.maplibregl-ctrl-group) { border-radius: var(--radius); }
+  .cm-map :global(.maplibregl-popup-content) { font: 400 var(--t-sm)/1.4 var(--body); color: #1f2d48; }
+</style>
+
+<script>
+  import maplibregl from 'maplibre-gl';
+  import { latLngToCell, cellToBoundary, cellToLatLng } from 'h3-js';
+
+  type Meta = {
+    city: string; extent?: string; source: string; sourceUrl: string; start: string; end: string; updated: string;
+    demo: boolean; total: number; cellMeters: number; cols: number; rows: number; bbox: [number, number, number, number];
+    categories: string[]; bands: string[];
+  };
+  type BG = { id: string; pop: number | null; rings: number[][][]; counts: number[] };
+
+  const root = document.querySelector<HTMLElement>('.crime-map')!;
+  const $ = <T extends Element>(s: string) => root.querySelector<T>(s)!;
+  const css = (v: string) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+  // ── State ───────────────────────────────────────────────────
+  let M: Meta, cells: number[][], bgs: BG[] | null = null, places: { name: string; lon: number; lat: number }[] = [];
+  let mode: 'hex' | 'heat' | 'points' | 'bg' = 'hex';
+  const state = { cats: new Set<number>(), band: -1, days: -1, color: 'type' as 'type' | 'count', measure: 'count' as 'count' | 'rate' };
+  const NC = () => M.categories.length, NB = () => M.bands.length;
+  // Per fine (150 m) cell: its center, and its H3 cell at each resolution.
+  let cellLL: [number, number][] = [];
+  const h3At: Record<number, string[]> = {};
+  const RES = [7, 8, 9];
+  let res = 8;
+  const resFor = (z: number) => (z < 10.4 ? 7 : z < 12.2 ? 8 : 9);
+  const hexKm2: Record<number, string> = { 7: '5.2 km²', 8: '0.74 km²', 9: '0.11 km²' };
+
+  // ── Map ─────────────────────────────────────────────────────
+  const dark = () => document.documentElement.dataset.theme === 'dark' ||
+    (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+  const styleUrl = () => `https://tiles.openfreemap.org/styles/${dark() ? 'dark' : 'positron'}`;
+
+  const map = new maplibregl.Map({
+    container: $<HTMLElement>('[data-map]'),
+    style: styleUrl(),
+    bounds: [[-94.665, 38.955], [-94.47, 39.125]],   // opens on the urban core
+    maxBounds: [[-94.95, 38.7], [-94.1, 39.5]],
+    minZoom: 9.5, maxZoom: 16,
+    attributionControl: { compact: true, customAttribution: 'Crime data: KCPD via KC Open Data' },
+    cooperativeGestures: true,                       // page scroll stays page scroll; ctrl/two-finger to zoom
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  // If the street tiles can't load (offline, blocked), fall back to a
+  // plain background so the crime layers still draw.
+  const blank = () => ({ version: 8, sources: {}, layers: [{ id: 'paper', type: 'background', paint: { 'background-color': css('--paper-2') } }] }) as any;
+  let fellBack = false;
+  map.on('error', (e) => {
+    const msg = String(e?.error?.message || e?.error?.status || '');
+    if (!map.isStyleLoaded() && !fellBack) { fellBack = true; map.setStyle(blank()); }
+    else if (msg.includes('styles/dark')) map.setStyle(styleUrl().replace('dark', 'positron'));
+  });
+
+  // ── Load data ───────────────────────────────────────────────
+  Promise.all([
+    fetch('/data/crime-grid.json').then((r) => r.json()),
+    fetch('/data/places.json').then((r) => (r.ok ? r.json() : { places: [] })).catch(() => ({ places: [] })),
+  ]).then(([g, p]) => {
+    M = g.meta; cells = g.cells; places = p.places || [];
+    prepare(); buildControls(); recompute();
+    if (map.isStyleLoaded()) addLayers(); else map.once('load', addLayers);
+  }).catch(() => ($('[data-title]').textContent = 'Map data is unavailable right now.'));
+
+  function prepare() {
+    const [w, s, , n] = M.bbox, cm = M.cellMeters;
+    const mPerLon = 111320 * Math.cos((((s + n) / 2) * Math.PI) / 180);
+    cellLL = cells.map((c) => [w + ((c[0] + 0.5) * cm) / mPerLon, s + ((c[1] + 0.5) * cm) / 110540]);
+    for (const r of RES) h3At[r] = cellLL.map(([lon, lat]) => latLngToCell(lat, lon, r));
+    state.cats = new Set(M.categories.map((_, i) => i));
+  }
+
+  // ── Controls ────────────────────────────────────────────────
+  function buildControls() {
+    $('[data-title]').innerHTML = `<span class="hot">●</span> ${M.city} · ${M.total.toLocaleString()} incidents in 12 months`;
+    const box = $('[data-cats]');
+    M.categories.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('aria-pressed', 'true'); b.style.setProperty('--c', `var(--cat-${i})`);
+      b.innerHTML = `<i aria-hidden="true"></i>${c}`;
+      b.addEventListener('click', () => {
+        if (state.cats.has(i) && state.cats.size === 1) return;
+        state.cats.has(i) ? state.cats.delete(i) : state.cats.add(i);
+        b.setAttribute('aria-pressed', String(state.cats.has(i)));
+        recompute();
+      });
+      box.append(b);
+    });
+    const band = $<HTMLSelectElement>('[data-band]');
+    M.bands.forEach((b, i) => band.add(new Option(b, String(i))));
+    band.addEventListener('change', () => { state.band = +band.value; recompute(); });
+    $<HTMLSelectElement>('[data-days]').addEventListener('change', (e) => { state.days = +(e.target as HTMLSelectElement).value; recompute(); });
+    $<HTMLSelectElement>('[data-color]').addEventListener('change', (e) => { state.color = (e.target as HTMLSelectElement).value as any; recompute(); });
+    $<HTMLSelectElement>('[data-measure]').addEventListener('change', (e) => { state.measure = (e.target as HTMLSelectElement).value as any; recompute(); });
+    root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => {
+      mode = b.dataset.mode as typeof mode;
+      root.querySelectorAll('[data-mode]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      recompute();
+    }));
+    map.on('zoomend', () => { const r = resFor(map.getZoom()); if (r !== res) { res = r; if (mode === 'hex') recompute(); } });
+    res = resFor(map.getZoom());
+  }
+
+  // ── Counting ────────────────────────────────────────────────
+  // slot = (category × bands + band) × 2 + weekend   (same as the Python)
+  const decode = (slot: number) => ({ wk: slot % 2, band: Math.floor(slot / 2) % NB(), cat: Math.floor(slot / 2 / NB()) });
+  const okBandDay = (d: { wk: number; band: number }) => (state.band < 0 || d.band === state.band) && (state.days < 0 || d.wk === state.days);
+
+  // Counts per category for one record, honoring time and day filters.
+  function catCounts(arr: number[], from: number) {
+    const out = new Float32Array(NC());
+    for (let j = from; j < arr.length; j += 2) { const d = decode(arr[j]); if (okBandDay(d)) out[d.cat] += arr[j + 1]; }
+    return out;
+  }
+  const selectedTotal = (cc: Float32Array) => { let t = 0; state.cats.forEach((c) => (t += cc[c])); return t; };
+  const dominant = (cc: Float32Array) => { let best = -1, v = -1; state.cats.forEach((c) => { if (cc[c] > v) { v = cc[c]; best = c; } }); return best; };
+
+  // Quantile class breaks on non-zero values (an analyst's default).
+  function breaks(vals: number[]) {
+    const nz = vals.filter((v) => v > 0).sort((a, b) => a - b);
+    const q = (p: number) => nz[Math.min(nz.length - 1, Math.floor(p * nz.length))] ?? 0;
+    return [q(0.5), q(0.8), q(0.95)];
+  }
+  const cls = (v: number, b: number[]) => (v > b[2] ? 3 : v > b[1] ? 2 : v > b[0] ? 1 : 0);
+
+  let cellCC: Float32Array[] = [];
+  let hexAgg: Map<string, { cc: Float32Array; t: number }> = new Map();
+
+  function aggregateHex(r: number) {
+    const agg = new Map<string, { cc: Float32Array; t: number }>();
+    cellCC.forEach((cc, i) => {
+      const id = h3At[r][i];
+      let a = agg.get(id);
+      if (!a) { a = { cc: new Float32Array(NC()), t: 0 }; agg.set(id, a); }
+      for (let k = 0; k < cc.length; k++) a.cc[k] += cc[k];
+    });
+    agg.forEach((a) => (a.t = selectedTotal(a.cc)));
+    return agg;
+  }
+
+  // ── Recompute: filters → layers + takeaways ─────────────────
+  async function recompute() {
+    if (!M) return;
+    $<HTMLElement>('[data-color-wrap]').hidden = mode !== 'hex';
+    $<HTMLElement>('[data-measure-wrap]').hidden = mode !== 'bg';
+    cellCC = cells.map((c) => catCounts(c, 2));
+    hexAgg = aggregateHex(res);
+    if (mode === 'bg' && !bgs) {
+      bgs = await fetch('/data/crime-bg.json').then((r) => r.json()).then((d) => d.bgs).catch(() => []);
+    }
+    updateLayers();
+    takeaways();
+  }
+
+  // ── Layers ──────────────────────────────────────────────────
+  const empty = { type: 'FeatureCollection', features: [] } as any;
+  let handlersBound = false;
+  function addLayers() {
+    if (!M || map.getSource('hex')) { updateLayers(); return; }
+    // Put crime layers under the street labels so names stay readable.
+    const firstLabel = map.getStyle().layers.find((l: any) => l.type === 'symbol')?.id;
+    map.addSource('hex', { type: 'geojson', data: empty });
+    map.addSource('pts', { type: 'geojson', data: empty });
+    map.addSource('bg', { type: 'geojson', data: empty });
+    map.addLayer({ id: 'bg-fill', type: 'fill', source: 'bg', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': ['get', 'op'] } }, firstLabel);
+    map.addLayer({ id: 'bg-line', type: 'line', source: 'bg', paint: { 'line-color': '#ffffff', 'line-width': 0.4, 'line-opacity': 0.7 } }, firstLabel);
+    map.addLayer({ id: 'hex-fill', type: 'fill', source: 'hex', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': ['get', 'op'] } }, firstLabel);
+    map.addLayer({ id: 'hex-line', type: 'line', source: 'hex', paint: { 'line-color': '#ffffff', 'line-width': 0.5, 'line-opacity': 0.6 } }, firstLabel);
+    map.addLayer({
+      id: 'heat', type: 'heatmap', source: 'pts', paint: {
+        'heatmap-weight': ['get', 'w'],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 0.8, 14, 2],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 9, 13, 22, 15, 40],
+        'heatmap-opacity': 0.85,
+        'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
+          0, 'rgba(0,0,0,0)', 0.15, css('--ramp-1'), 0.4, css('--ramp-2'), 0.7, css('--ramp-3'), 1, css('--ramp-4')],
+      },
+    }, firstLabel);
+    map.addLayer({
+      id: 'pts', type: 'circle', source: 'pts', paint: {
+        'circle-color': ['get', 'color'], 'circle-opacity': 0.75,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, ['*', 0.9, ['sqrt', ['get', 'n']]], 14, ['*', 2.4, ['sqrt', ['get', 'n']]]],
+        'circle-stroke-width': 0.4, 'circle-stroke-color': '#ffffff',
+      },
+    }, firstLabel);
+
+    // Layer event handlers survive style swaps, so bind them only once.
+    if (!handlersBound) {
+      handlersBound = true;
+      map.on('click', 'hex-fill', (e) => showDetail(e.features?.[0]?.properties?.id));
+      map.on('click', 'bg-fill', (e) => showBg(e.features?.[0]?.properties));
+      for (const l of ['hex-fill', 'bg-fill']) {
+        map.on('mouseenter', l, () => (map.getCanvas().style.cursor = 'pointer'));
+        map.on('mouseleave', l, () => (map.getCanvas().style.cursor = ''));
+      }
+    }
+    updateLayers();
+  }
+  // Re-add our layers if the base style changes (light/dark switch).
+  map.on('style.load', () => { if (M) addLayers(); });
+
+  function updateLayers() {
+    if (!map.getSource('hex')) return;
+    const vis = (id: string, on: boolean) => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+    vis('hex-fill', mode === 'hex'); vis('hex-line', mode === 'hex');
+    vis('heat', mode === 'heat'); vis('pts', mode === 'points');
+    vis('bg-fill', mode === 'bg'); vis('bg-line', mode === 'bg');
+    const ramp = [css('--ramp-1'), css('--ramp-2'), css('--ramp-3'), css('--ramp-4')];
+    const catColor = (i: number) => css(`--cat-${i}`);
+
+    if (mode === 'hex') {
+      const b = breaks([...hexAgg.values()].map((a) => a.t));
+      const feats: any[] = [];
+      hexAgg.forEach((a, id) => {
+        if (a.t <= 0) return;
+        const c = cls(a.t, b);
+        feats.push({
+          type: 'Feature', geometry: { type: 'Polygon', coordinates: [cellToBoundary(id, true)] },
+          properties: {
+            id, n: a.t,
+            color: state.color === 'type' ? catColor(dominant(a.cc)) : ramp[c],
+            op: state.color === 'type' ? [0.25, 0.45, 0.68, 0.9][c] : [0.45, 0.7, 0.85, 0.95][c],
+          },
+        });
+      });
+      (map.getSource('hex') as any).setData({ type: 'FeatureCollection', features: feats });
+      $('[data-key]').textContent = state.color === 'type'
+        ? `Each hexagon (${hexKm2[res]}) shows its most common crime type. Darker means more incidents.`
+        : `Each hexagon (${hexKm2[res]}) shaded by number of incidents. Zoom in for smaller hexagons.`;
+    }
+
+    if (mode === 'heat' || mode === 'points') {
+      let max = 1; cellCC.forEach((cc) => (max = Math.max(max, selectedTotal(cc))));
+      const feats: any[] = [];
+      cellCC.forEach((cc, i) => {
+        const n = selectedTotal(cc); if (n <= 0) return;
+        feats.push({ type: 'Feature', geometry: { type: 'Point', coordinates: cellLL[i] }, properties: { n, w: n / max, color: catColor(dominant(cc)) } });
+      });
+      (map.getSource('pts') as any).setData({ type: 'FeatureCollection', features: feats });
+      $('[data-key]').textContent = mode === 'heat'
+        ? 'Kernel density of incidents: brighter means more concentrated.'
+        : 'Dots sit at 150 m grid cells, sized by count and colored by the most common type. Exact addresses are never shown.';
+    }
+
+    if (mode === 'bg' && bgs) {
+      const minPop = 200;
+      const vals = bgs.map((g) => {
+        const n = selectedTotal(catCounts(g.counts, 0));
+        const v = state.measure === 'count' ? n : g.pop && g.pop >= minPop ? (n / g.pop) * 1000 : null;
+        return { g, n, v };
+      });
+      const b = breaks(vals.map((x) => x.v ?? 0));
+      const feats = vals.map(({ g, n, v }) => ({
+        type: 'Feature',
+        geometry: { type: 'MultiPolygon', coordinates: g.rings.map((r) => [r]) },
+        properties: {
+          id: g.id, n, pop: g.pop ?? -1, rate: v ?? -1,
+          color: v == null ? css('--rule') : v > 0 ? ramp[cls(v, b)] : css('--paper-2'),
+          op: v == null ? 0.55 : v > 0 ? [0.5, 0.7, 0.85, 0.95][cls(v, b)] : 0.3,
+        },
+      }));
+      (map.getSource('bg') as any).setData({ type: 'FeatureCollection', features: feats });
+      $('[data-key]').textContent = state.measure === 'count'
+        ? 'Census block groups, shaded by number of incidents.'
+        : 'Incidents per 1,000 residents. Grey: under 200 residents, too few for a fair rate.';
+    }
+  }
+
+  // ── Takeaways ───────────────────────────────────────────────
+  const pct = (x: number) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
+  const nearest = (lon: number, lat: number) => {
+    let best = '', d = Infinity;
+    for (const p of places) { const dd = (p.lon - lon) ** 2 * 0.6 + (p.lat - lat) ** 2; if (dd < d) { d = dd; best = p.name; } }
+    return d < 0.0004 ? best : '';  // within roughly 2 km
+  };
+  const typeLabel = (cats: Set<number>) =>
+    cats.size === NC() ? 'incidents' : [...cats].map((c) => M.categories[c].toLowerCase()).join(' and ') + ' incidents';
+
+  function takeaways() {
+    // 1. Concentration, always on mid-size hexagons so the number is stable.
+    const agg8 = res === 8 ? hexAgg : aggregateHex(8);
+    const tots = [...agg8.values()].map((a) => a.t).sort((a, b) => b - a);
+    const total = tots.reduce((a, b) => a + b, 0);
+    let run = 0, k = 0; while (total && run < total / 2) run += tots[k++];
+    const active = agg8.size;  // every hexagon that had any incident this year
+    $('[data-share]').textContent = total ? pct(k / active) : '–';
+    $('[data-share-text]').innerHTML = total
+      ? `of the city's active hexagons hold <strong>half of all ${total.toLocaleString()} ${typeLabel(state.cats)}</strong>. Crime concentrates in a small share of places.`
+      : 'No incidents match these filters.';
+
+    // 2. Time of day (ignores the time filter, honors days and types).
+    const byBand = new Float32Array(NB());
+    for (const c of cells) for (let j = 2; j < c.length; j += 2) {
+      const d = decode(c[j]);
+      if (state.cats.has(d.cat) && (state.days < 0 || d.wk === state.days)) byBand[d.band] += c[j + 1];
+    }
+    const bt = byBand.reduce((a, b) => a + b, 0) || 1, maxB = Math.max(...byBand), peak = byBand.indexOf(maxB);
+    $('[data-bars]').innerHTML = M.bands.map((b, i) =>
+      `<div class="${i === peak ? 'peak' : ''}"><b style="height:${(byBand[i] / maxB) * 68}%"></b><span>${b}<br>${pct(byBand[i] / bt)}</span></div>`).join('');
+    // Per-type peaks, so differences between crime types stand out.
+    const peaks = [...state.cats].map((cat) => {
+      const v = new Float32Array(NB());
+      for (const c of cells) for (let j = 2; j < c.length; j += 2) { const d = decode(c[j]); if (d.cat === cat && (state.days < 0 || d.wk === state.days)) v[d.band] += c[j + 1]; }
+      return { cat, band: v.indexOf(Math.max(...v)) };
+    });
+    const groups = new Map<number, string[]>();
+    peaks.forEach((p) => groups.set(p.band, [...(groups.get(p.band) ?? []), M.categories[p.cat].toLowerCase()]));
+    $('[data-time-text]').innerHTML = `Busiest overall: <strong>${M.bands[peak].toLowerCase()}</strong>. ` +
+      [...groups].map(([b, names]) => `${cap(names.join(', '))} ${names.length > 1 ? 'peak' : 'peaks'} ${M.bands[b].toLowerCase()}.`).join(' ');
+
+    // 3. Crime mix (honors time and day filters).
+    const mix = new Float32Array(NC()); cellCC.forEach((cc) => cc.forEach((v, i) => (mix[i] += v)));
+    const mt = [...state.cats].reduce((a, c) => a + mix[c], 0) || 1;
+    $('[data-mix]').innerHTML = [...state.cats].map((c) => `<span style="--c:var(--cat-${c});width:${(mix[c] / mt) * 100}%" title="${M.categories[c]} ${pct(mix[c] / mt)}"></span>`).join('');
+    const order = [...state.cats].sort((a, b) => mix[b] - mix[a]);
+    $('[data-mix-text]').innerHTML = order.map((c) => `<strong style="color:var(--cat-${c})">${M.categories[c]}</strong> ${pct(mix[c] / mt)}`).join(' · ');
+
+    // 4. Top hot spots on mid-size hexagons, named by nearest neighborhood.
+    const top = [...agg8.entries()].sort((a, b) => b[1].t - a[1].t).slice(0, 5);
+    $('[data-hot-note]').textContent = '(0.74 km² each)';
+    $('[data-hot]').innerHTML = '';
+    top.forEach(([id, a], i) => {
+      const [lat, lon] = cellToLatLng(id);
+      const name = nearest(lon, lat) ? `Near ${nearest(lon, lat)}` : `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+      const dom = dominant(a.cc);
+      const li = document.createElement('li');
+      li.innerHTML = `<button type="button"><span class="rk">${i + 1}</span><span>${name}<span class="ty">Mostly ${M.categories[dom].toLowerCase()} · ${pct(a.cc[dom] / (a.t || 1))}</span></span><span class="n">${Math.round(a.t).toLocaleString()}</span></button>`;
+      li.querySelector('button')!.addEventListener('click', () => {
+        map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13.2), essential: true });
+        showDetail(id, 8);
+      });
+      $('[data-hot]').append(li);
+    });
+
+    // Source line
+    const f = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    $('[data-src-line]').innerHTML = `Source: <a href="${M.sourceUrl}" target="_blank" rel="noopener">${M.source}</a>, ${f(M.start)} – ${f(M.end)}. Updated ${f(M.updated)}. Counts aggregated to 150 m cells${mode === 'bg' ? '; Census TIGER/Line block groups and ACS 5-year population' : ''}. Map © OpenFreeMap, OpenMapTiles, OpenStreetMap contributors. Police-reported incidents only; not every crime is reported.`;
+  }
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  // ── Details on click ────────────────────────────────────────
+  function showDetail(id?: string, r = res) {
+    if (!id) return;
+    const a = (r === res ? hexAgg : aggregateHex(r)).get(id); if (!a) return;
+    // Time of day for this hexagon
+    const v = new Float32Array(NB());
+    cells.forEach((c, i) => { if (h3At[r][i] !== id) return; for (let j = 2; j < c.length; j += 2) { const d = decode(c[j]); if (state.cats.has(d.cat) && (state.days < 0 || d.wk === state.days)) v[d.band] += c[j + 1]; } });
+    const peak = v.indexOf(Math.max(...v));
+    const [lat, lon] = cellToLatLng(id); const near = nearest(lon, lat);
+    const rows = [...state.cats].sort((x, y) => a.cc[y] - a.cc[x])
+      .map((c) => `<li><span><i style="--c:var(--cat-${c})"></i>${M.categories[c]}</span><span>${Math.round(a.cc[c]).toLocaleString()} · ${pct(a.cc[c] / (a.t || 1))}</span></li>`).join('');
+    const el = $<HTMLElement>('[data-detail]');
+    el.innerHTML = `<button type="button" class="close" aria-label="Close details">Close</button><p class="label">Selected hexagon${near ? ` · near ${near}` : ''}</p>
+      <p class="tk-text"><strong>${Math.round(a.t).toLocaleString()} incidents</strong>, busiest ${M.bands[peak].toLowerCase()}.</p><ul>${rows}</ul>`;
+    el.hidden = false;
+    el.querySelector('.close')!.addEventListener('click', () => (el.hidden = true));
+  }
+  function showBg(p: any) {
+    if (!p) return;
+    const el = $<HTMLElement>('[data-detail]');
+    const pop = p.pop >= 0 ? `${Number(p.pop).toLocaleString()} residents` : 'population unknown';
+    const rate = p.pop >= 200 ? `, ${((p.n / p.pop) * 1000).toFixed(1)} per 1,000 residents` : p.pop >= 0 ? ', too few residents for a rate' : '';
+    el.innerHTML = `<button type="button" class="close" aria-label="Close details">Close</button><p class="label">Block group ${p.id}</p>
+      <p class="tk-text"><strong>${Number(p.n).toLocaleString()} incidents</strong> · ${pop}${rate}.</p>`;
+    el.hidden = false;
+    el.querySelector('.close')!.addEventListener('click', () => (el.hidden = true));
+  }
+
+  // ── Theme changes: swap the base style, keep our layers ─────
+  const onTheme = () => { map.setStyle(styleUrl()); };
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', onTheme);
+  new MutationObserver(onTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+</script>

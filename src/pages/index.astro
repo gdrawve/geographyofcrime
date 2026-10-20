@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Video from '../components/Video.astro';
-import ConcentrationMap from '../components/ConcentrationMap.astro';
+import CrimeMap from '../components/CrimeMap.astro';
 import EmailCopy from '../components/EmailCopy.astro';
 import { episodes, epLabel, epTitle } from '../data/episodes';
 import { tutorials, tracks } from '../data/tutorials';
@@ -19,6 +19,8 @@ const writingCount = talks.length + articles.length + conversations.length;
       <div class="hero-copy">
         <p class="label"><span class="hot">Place matters</span> · Spatial criminology</p>
         <h1>Crime has an address.</h1>
+      </div>
+      <div class="hero-side">
         <p class="lede">
           I'm Grant Drawve. I study where crime happens and why it concentrates there,
           then share it as a podcast, free mapping tutorials, and talks for analysts,
@@ -29,9 +31,10 @@ const writingCount = talks.length + articles.length + conversations.length;
           <a class="btn ghost" href="/tutorials/">Browse {tutorials.length} tutorials</a>
         </div>
       </div>
-      <ConcentrationMap />
     </div>
   </section>
+
+  <CrimeMap />
 
   <section class="section">
     <div class="wrap">
@@ -106,10 +109,13 @@ const writingCount = talks.length + articles.length + conversations.length;
       </div>
       <div class="stack">
         <p>
-          I'm {person.jobTitle} at CAP Index, where I built and lead the Research &amp; Innovation
-          division behind its newest crime risk products.
-          Before that I was an associate professor of criminology at the University of Arkansas and
-          associate director of the Crime &amp; Security Data Analytics Lab (CASDAL).
+          I'm {person.jobTitle} at <a href={person.employer.url} target="_blank" rel="noopener">CAP Index</a>,
+          a crime risk scoring and modeling company. I was hired to build its Research &amp; Innovation
+          division, which has since brought four new crime risk products to market.
+        </p>
+        <p>
+          Day to day, I lead a team of crime and data analysts hunting data, standardizing the messiness,
+          and developing pipelines.
         </p>
         <p><a class="arrow-link" href="/about/">More about me →</a></p>
       </div>
@@ -129,14 +135,15 @@ const writingCount = talks.length + articles.length + conversations.length;
 </Base>
 
 <style>
-  .hero { padding-block: clamp(2.5rem, 5vw, 4.5rem) clamp(3rem, 6vw, 5rem); }
+  .hero { padding-block: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 3vw, 2.5rem); }
   .hero-grid {
     display: grid;
-    gap: clamp(2rem, 4vw, 3.5rem);
+    gap: 1.25rem clamp(2rem, 4vw, 4rem);
     grid-template-columns: minmax(0, 1fr);
-    align-items: center;
+    align-items: end;
   }
-  @media (min-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); } }
+  @media (min-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); } }
+  .hero-side { display: grid; gap: 1rem; min-width: 0; }
   .hero-copy { display: grid; gap: 1.25rem; min-width: 0; }
   .hero h1 { font-size: clamp(2.6rem, 1.6rem + 4.4vw, 5rem); font-stretch: 118%; }
   .cta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
