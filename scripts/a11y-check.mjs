@@ -46,7 +46,10 @@ let failures = 0;
 for (const scheme of ['light', 'dark']) {
   for (const p of list) {
     const page = await browser.newPage({ colorScheme: scheme });
-    await page.goto(`http://localhost:4399${p}`, { waitUntil: 'networkidle' });
+    // 'load' (not 'networkidle'): YouTube thumbnails can keep the network
+    // busy on CI and time the check out even when the page is fine.
+    await page.goto(`http://localhost:4399${p}`, { waitUntil: 'load', timeout: 60000 });
+    await page.waitForTimeout(300);
     await page.addScriptTag({ content: axeSource });
     const { violations } = await page.evaluate(() =>
       // eslint-disable-next-line no-undef
