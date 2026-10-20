@@ -47,13 +47,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if git diff --quiet public/data/crime-grid.json public/data/crime-bg.json public/data/basemap.json src/data/research.json; then
+          # Stage first so brand-new files (like a first basemap) count.
+          git add public/data/crime-grid.json public/data/crime-bg.json public/data/basemap.json src/data/research.json
+          if git diff --cached --quiet; then
             echo "No change in data."
             exit 0
           fi
           git config user.name "geographyofcrime-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add public/data/crime-grid.json public/data/crime-bg.json public/data/basemap.json src/data/research.json
           git commit -m "Refresh crime and research data ($(date -u +%Y-%m-%d))"
           git push
           # Pushes made by this workflow don't trigger other workflows,
