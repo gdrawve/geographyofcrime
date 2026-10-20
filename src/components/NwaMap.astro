@@ -1,0 +1,85 @@
+---
+// Home-base graphic for the hero: the I-49 corridor through Northwest
+// Arkansas, drawn as an SVG from Census TIGER/Line data
+// (src/data/nwa-basemap.json, built by scripts/build_nwa.py).
+// It uses the site's colors, so it follows light and dark mode.
+import nwa from '../data/nwa-basemap.json';
+
+// Round coordinates to whole drawing units and drop repeated points:
+// invisible at this size, and it keeps the home page about 30% lighter.
+function tidy(d: string): string {
+  const rounded = d.replace(/(\d+)\.\d+/g, '$1');
+  return rounded.split('M').slice(1).map((seg) => {
+    const closed = seg.includes('Z');
+    const pts = seg.replace('Z', '').split(' L').map((p) => p.trim());
+    const keep = pts.filter((p, i) => i === 0 || p !== pts[i - 1]);
+    return keep.length > 1 ? `M${keep.join(' L')}${closed ? 'Z' : ''}` : '';
+  }).join('');
+}
+
+const { width, height, cities } = nwa;
+// Beaver Lake label: placed by hand over open water, clear of "Rogers".
+const [lakeX, lakeY] = [835, 560];
+// Where each label sits relative to its dot, chosen so labels don't overlap.
+const place: Record<string, { dx: number; dy: number; anchor: 'start' | 'end' }> = {
+  Bentonville: { dx: -22, dy: -14, anchor: 'end' },
+  Rogers: { dx: 22, dy: -10, anchor: 'start' },
+  Springdale: { dx: 22, dy: 12, anchor: 'start' },
+  Fayetteville: { dx: 22, dy: 14, anchor: 'start' },
+};
+---
+<figure class="nwa">
+  <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-labelledby="nwa-title">
+    <title id="nwa-title">Map of Northwest Arkansas: Bentonville, Rogers, Springdale, and Fayetteville along the I-49 corridor, with Beaver Lake to the east.</title>
+    <path class="water" d={tidy(nwa.water)} />
+    {cities.map((c) => <path class="city" d={tidy(c.outline)} />)}
+    <path class="road" d={tidy(nwa.major)} />
+    <path class="hwy" d={tidy(nwa.highways)} />
+    <path class="i49" d={tidy(nwa.interstate)} />
+    <text class="lake" x={lakeX} y={lakeY} text-anchor="middle">Beaver Lake</text>
+    <g class="shield" transform="translate(318 600)">
+      <rect x="-44" y="-26" width="88" height="44" rx="6" />
+      <text y="8">I-49</text>
+    </g>
+    {cities.map((c) => {
+      const p = place[c.name] ?? { dx: 22, dy: 10, anchor: 'start' };
+      return (
+        <g class="town">
+          <circle class="halo" cx={c.x} cy={c.y} r="26" />
+          <circle class="dot" cx={c.x} cy={c.y} r="10" />
+          <text x={c.x + p.dx} y={c.y + p.dy} text-anchor={p.anchor}>{c.name}</text>
+        </g>
+      );
+    })}
+    <g class="north" transform={`translate(${width - 70} 70)`} aria-hidden="true">
+      <path d="M0 -34 L14 10 L0 2 L-14 10 Z" />
+      <text y="40">N</text>
+    </g>
+  </svg>
+  <figcaption>
+    <span class="label">Home base · Northwest Arkansas</span>
+    <span class="coords">36.06° N, 94.16° W</span>
+  </figcaption>
+</figure>
+
+<style>
+  .nwa { margin: 0; display: grid; gap: 0.6rem; min-width: 0; }
+  .nwa svg { display: block; width: 100%; height: auto; max-height: 34rem; }
+  /* Lines keep their weight however large the map is drawn. */
+  .nwa path { vector-effect: non-scaling-stroke; }
+  .water { fill: color-mix(in srgb, var(--water) 22%, var(--paper)); }
+  .city { fill: var(--paper-2); stroke: var(--rule); stroke-width: 1; }
+  .road { fill: none; stroke: var(--rule); stroke-width: 0.8; }
+  .hwy { fill: none; stroke: color-mix(in srgb, var(--ink-2) 45%, transparent); stroke-width: 1.4; }
+  .i49 { fill: none; stroke: var(--hot); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+  .lake { fill: color-mix(in srgb, var(--water) 80%, var(--ink)); font: italic 400 30px var(--body); letter-spacing: 0.08em; }
+  .shield rect { fill: var(--card); stroke: var(--hot); stroke-width: 3; }
+  .shield text { fill: var(--hot-ink); font: 500 26px var(--mono); text-anchor: middle; }
+  .halo { fill: var(--hot); opacity: 0.14; }
+  .dot { fill: var(--hot); stroke: var(--card); stroke-width: 3; }
+  .town text { fill: var(--ink); font: 750 40px var(--display); font-stretch: 112%; paint-order: stroke; stroke: var(--paper); stroke-width: 8px; stroke-linejoin: round; }
+  .north path { fill: var(--ink); }
+  .north text { fill: var(--ink); font: 500 26px var(--mono); text-anchor: middle; }
+  .nwa figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 1rem; border-top: 1px solid var(--rule); padding-top: 0.5rem; }
+  .coords { font: 400 var(--t-xs) var(--mono); color: var(--ink-2); }
+</style>

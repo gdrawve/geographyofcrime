@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import Video from '../components/Video.astro';
 import CrimeMap from '../components/CrimeMap.astro';
+import NwaMap from '../components/NwaMap.astro';
 import EmailCopy from '../components/EmailCopy.astro';
 import { episodes, epLabel, epTitle } from '../data/episodes';
 import { tutorials, tracks } from '../data/tutorials';
@@ -19,12 +20,11 @@ const writingCount = talks.length + articles.length + conversations.length;
       <div class="hero-copy">
         <p class="label"><span class="hot">Place matters</span> · Spatial criminology</p>
         <h1>Crime has an address.</h1>
-      </div>
-      <div class="hero-side">
         <p class="lede">
-          I'm Grant Drawve. I study where crime happens and why it concentrates there,
-          then share it as a podcast, free mapping tutorials, and talks for analysts,
-          police, retailers, and researchers.
+          I'm Grant Drawve, a spatial criminologist. I turn crime insights into data-informed
+          decisions about place: where risk concentrates, why, and what to do about it. Here
+          you'll find my podcast, free tutorials and tools, and research for analysts, police,
+          retailers, and researchers.
         </p>
         <div class="cta">
           <a class="btn" href="/podcast/">Listen to the podcast</a>
@@ -32,6 +32,7 @@ const writingCount = talks.length + articles.length + conversations.length;
         </div>
         <a class="map-teaser" href="#map">Explore a live Kansas City crime map ↓</a>
       </div>
+      <NwaMap />
     </div>
   </section>
 
@@ -147,15 +148,18 @@ const writingCount = talks.length + articles.length + conversations.length;
 
 <style>
   .hero { padding-block: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 3vw, 2.5rem); }
+  /* Text on the left, the Northwest Arkansas map on the right. On
+     phones the map follows the text, at a modest height. */
   .hero-grid {
     display: grid;
-    gap: 1.25rem clamp(2rem, 4vw, 4rem);
+    gap: 2rem clamp(2rem, 5vw, 5rem);
     grid-template-columns: minmax(0, 1fr);
-    align-items: end;
+    align-items: center;
   }
-  @media (min-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); } }
-  .hero-side { display: grid; gap: 1rem; min-width: 0; }
-  .hero-copy { display: grid; gap: 1.25rem; min-width: 0; }
+  @media (min-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1.25fr) minmax(16rem, 0.75fr); } }
+  @media (max-width: 899px) { .hero-grid :global(.nwa) { max-width: 24rem; } .hero-grid :global(.nwa svg) { max-height: 22rem; } }
+  .hero-copy { display: grid; gap: 1.1rem; min-width: 0; justify-items: start; }
+  .hero-copy .lede { max-width: 38rem; }
   .hero h1 { font-size: clamp(2.6rem, 1.6rem + 4.4vw, 5rem); font-stretch: 118%; }
   .cta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
   .map-teaser { font-size: var(--t-sm); font-weight: 600; justify-self: start; }
