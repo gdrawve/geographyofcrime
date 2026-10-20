@@ -71,6 +71,8 @@ CITY = {
         "date": "from_date",     # when the offense began (not when reported)
         "point": "location",     # a GeoJSON point holding longitude/latitude
         "offense": "ibrs",       # the NIBRS offense code, e.g. 120 = robbery
+        "nibrs_name": "description",  # NIBRS offense name, used when the code is blank
+        "label": "offense",      # KCPD's own offense label, the last fallback
         "id": "report",          # report number, used to remove duplicates
     },
     "offense_is_nibrs": True,
@@ -98,31 +100,11 @@ CITY = {
     },
 }
 
-# When a city publishes NIBRS codes, we categorize by code instead of by
-# keyword. Codes come from the FBI's NIBRS offense list.
-NIBRS = {
-    "Violent":   {"09A", "09B", "09C", "100", "11A", "11B", "11C", "11D", "120", "13A", "13B", "13C", "36A", "36B", "64A", "64B"},
-    "Vehicle":   {"240", "23F", "23G"},   # vehicle theft, theft from and of parts
-    "Burglary":  {"220"},
-    "Theft":     {"23A", "23B", "23C", "23D", "23E", "23H"},
-    "Vandalism": {"290"},                 # destruction / damage / vandalism of property
-    "Drugs & weapons": {"35A", "35B", "520"},
-    "Fraud":     {"26A", "26B", "26C", "26D", "26E", "26F", "26G", "26H", "250", "270"},
-}
-
-# Offense → category. Matching is by keyword, case-insensitive, so
-# "MOTOR VEHICLE THEFT" matches "VEHICLE" before it matches "THEFT".
-# Order matters: the FIRST category with a matching keyword wins.
-CATEGORIES = [
-    ("Violent",   ["HOMICIDE", "MURDER", "ASSAULT", "BATTERY", "ROBBERY", "SEXUAL", "RAPE", "KIDNAP"]),
-    ("Vehicle",   ["MOTOR VEHICLE", "VEHICLE THEFT", "AUTO THEFT", "CARJACK"]),
-    ("Burglary",  ["BURGLARY", "BREAKING", "B&E"]),
-    ("Theft",     ["THEFT", "LARCENY", "SHOPLIFT", "PICKPOCKET"]),
-    ("Vandalism", ["VANDALISM", "DESTRUCTION", "DAMAGE", "CRIMINAL DAMAGE"]),
-    ("Drugs & weapons", ["NARCOTIC", "DRUG", "WEAPON"]),
-    ("Fraud",     ["FRAUD", "FORGERY", "COUNTERFEIT", "EMBEZZLE", "DECEPTIVE", "IDENTITY"]),
-    ("Other",     []),  # everything that matched nothing above
-]
+# Crime types and groups come from scripts/nibrs.py (the FBI's NIBRS
+# offense categories and "Crime Against" groups). CATEGORIES is just the
+# list of names, in the order used for the data slots.
+import nibrs
+CATEGORIES = nibrs.NAMES
 
 # Time-of-day bands (24-hour clock, start inclusive, end exclusive).
 BANDS = [
@@ -200,6 +182,8 @@ FIELD_ALTERNATIVES = {
     "point": ["location", "location_1", "geocoded_column", "geo_location"],
     "offense": ["ibrs", "ibrs_code", "nibrs", "nibrs_code", "offense_code"],
     "id": ["report", "report_no", "report_number", "case_number"],
+    "nibrs_name": ["description", "nibrs_description", "ibrs_description"],
+    "label": ["offense", "offense_description", "offense_desc"],
 }
 
 
@@ -264,7 +248,7 @@ def fetch_socrata_yearly(cfg: dict, since: date) -> list[dict]:
         try:
             while True:
                 params = {
-                    "$select": ",".join(f[k] for k in ("id", "date", "offense", "point") if k in f),
+                    "$select": ",".join(f[k] for k in ("id", "date", "offense", "nibrs_name", "label", "point") if k in f),
                     "$where": f"{f['date']} >= '{since.isoformat()}T00:00:00' AND {f['point']} IS NOT NULL",
                     "$order": ":id",
                     "$limit": PAGE_SIZE,
@@ -274,7 +258,8 @@ def fetch_socrata_yearly(cfg: dict, since: date) -> list[dict]:
                 for r in page:
                     lon, lat = (r.get(f["point"]) or {}).get("coordinates", [None, None])
                     rows.append({"id": r.get(f.get("id", "")), "date": r.get(f["date"]),
-                                 "offense": r.get(f["offense"]), "lat": lat, "lon": lon})
+                                 "offense": r.get(f["offense"]), "nibrs_name": r.get(f.get("nibrs_name", "")),
+                                 "label": r.get(f.get("label", "")), "lat": lat, "lon": lon})
                 n_year += len(page)
                 if len(page) < PAGE_SIZE:
                     break
@@ -333,19 +318,19 @@ def parse_when(value) -> datetime | None:
         return None
 
 
-def categorize(offense: str, nibrs: bool = False) -> int:
-    """Return the index of the first category whose keyword (or code) matches."""
-    text = (offense or "").upper().strip()
-    if nibrs:
-        names = [c for c, _ in CATEGORIES]
-        for cat, codes in NIBRS.items():
-            if text in codes:
-                return names.index(cat)
-        return len(CATEGORIES) - 1
-    for i, (_, keywords) in enumerate(CATEGORIES):
-        if any(k in text for k in keywords):
-            return i
-    return len(CATEGORIES) - 1  # "Other"
+def categorize(code: str | None, name: str | None = None, label: str | None = None) -> int:
+    """Index of the NIBRS category for one row (see scripts/nibrs.py)."""
+    i, how = nibrs.classify(code, name, label)
+    MATCHED[how] += 1
+    if how == "none":
+        UNMATCHED[(label or name or code or "(blank)").strip()] += 1
+    return i
+
+
+# Tallies of how rows were classified, printed at the end of a run.
+from collections import Counter
+MATCHED: Counter = Counter()
+UNMATCHED: Counter = Counter()
 
 
 def band_of(hour: int) -> int:
@@ -463,7 +448,9 @@ def demo_incidents() -> tuple[list[tuple], list[float]]:
             out.append((lat, lon, cat, band_of(hour), weekend, when))
 
     n_ = n
-    V, VEH, BUR, TH, OTH = range(5)
+    ix = nibrs.NAMES.index
+    V, VEH, BUR, TH, OTH = (ix("Assault Offenses"), ix("Motor Vehicle Theft"), ix("Burglary/Breaking & Entering"),
+                            ix("Larceny/Theft Offenses"), ix("All Other Offenses"))
     add(700, V, "nightlife", [4, 1, 1, 6], 0.55)
     add(350, V, "downtown", [2, 1, 2, 3], 0.4)
     add(300, V, "apartments", [2, 1, 2, 3], 0.35)
@@ -533,9 +520,15 @@ def main():
                 continue
             first = when if first is None or when < first else first
             last = when if last is None or when > last else last
-            incidents.append((lat, lon, categorize(r.get(f["offense"]), cfg.get("offense_is_nibrs", False)),
+            incidents.append((lat, lon, categorize(r.get(f["offense"]) if cfg.get("offense_is_nibrs") else None,
+                                                    r.get("nibrs_name"), r.get("label") or (None if cfg.get("offense_is_nibrs") else r.get(f["offense"]))),
                               band_of(when.hour), int(when.weekday() >= 5), when))
         print(f"Kept {len(incidents):,} incidents, dropped {dropped:,}", file=sys.stderr)
+        print(f"Classified by NIBRS code {MATCHED['code']:,}, by NIBRS name {MATCHED['name']:,}, "
+              f"by KCPD label {MATCHED['label']:,}; unclassified {MATCHED['none']:,}", file=sys.stderr)
+        if UNMATCHED:
+            top = "; ".join(f"{k} ({v:,})" for k, v in UNMATCHED.most_common(12))
+            print(f"::warning::Most common unclassified labels: {top}", file=sys.stderr)
         if getattr(fetch_socrata_yearly, "skipped", None):
             # A missing year would show as a false crime drop. Keep last week's files.
             print(f"::warning::Skipped years {fetch_socrata_yearly.skipped}; kept last week's data.", file=sys.stderr)
@@ -568,7 +561,7 @@ def main():
             "bbox": bbox,
             "cols": grid["cols"],
             "rows": grid["rows"],
-            "categories": [c for c, _ in CATEGORIES],
+            **nibrs.meta(),
             "bands": [b for b, _, _ in BANDS],
         },
         "cells": grid["cells"],
@@ -600,7 +593,7 @@ def main():
         places = json.loads(PLACES_FILE.read_text())["places"]
     except (OSError, ValueError, KeyError):
         places = []
-    stats = crime_stats.build(all_incidents, [c for c, _ in CATEGORIES], recent_from, grid["cells"],
+    stats = crime_stats.build(all_incidents, CATEGORIES, recent_from, grid["cells"],
                               bgs, places, payload["meta"])
     crime_stats.write(stats, STATS_FILE)
     print(f"Wrote {OUT_FILE} ({OUT_FILE.stat().st_size / 1024:.0f} KB, "

@@ -9,7 +9,16 @@ import stats from '../data/kc-stats.json';
 
 const { meta, months, days, monthly, yoy, hourDay, concentration: conc, neighborhoods: hoods } = stats as any;
 const cats: string[] = meta.categories;
+const short: string[] = meta.short;
+const groups: string[] = meta.groups;
+const catGroup: number[] = meta.catGroup;
 const nc = cats.length;
+// NIBRS Group A = crimes against persons, property, and society. The
+// headline figures use Group A, matching how the FBI reports crime;
+// Group B (arrest-only offenses) and unclassified reports are shown separately.
+const A_GROUPS = ['Persons', 'Property', 'Society'].map((g) => groups.indexOf(g));
+const inA = (c: number) => A_GROUPS.includes(catGroup[c]);
+const groupLabel = (g: number) => (A_GROUPS.includes(g) ? `Crimes against ${groups[g].toLowerCase()}` : groups[g]);
 const fmt = (n: number) => n.toLocaleString('en-US');
 const monthName = (mk: string, long = false) => {
   const [y, m] = mk.split('-').map(Number);
@@ -18,21 +27,23 @@ const monthName = (mk: string, long = false) => {
 const longDate = (iso: string) => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 
 // ── Headline figures ──
-const total12 = meta.total12;
-const perDay = Math.round(total12 / 365);
 const pct = (a: number, b: number) => (b ? ((a - b) / b) * 100 : null);
-const yoyAll = yoy ? pct(yoy.current.total, yoy.prior.total) : null;
 const sign = (v: number | null) => (v == null ? '–' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%`);
+const sumOf = (arr: number[], pick: (c: number) => boolean) => arr.reduce((s, v, c) => s + (pick(c) ? v : 0), 0);
 
-// Totals by type over the last 12 months (from the hour × day grid).
-const byCat12 = hourDay.map((row: number[]) => row.reduce((a, b) => a + b, 0));
-// Largest first, with the catch-all "Other" (last category) always at the end.
-const other = nc - 1;
-const order = [...cats.keys()].filter((c) => byCat12[c] > 0 && c !== other).sort((a, b) => byCat12[b] - byCat12[a]).concat(byCat12[other] > 0 ? [other] : []);
-const topCat = order[0];
+// Totals by category over the last 12 months (from the hour × day grid).
+const byCat12: number[] = hourDay.map((row: number[]) => row.reduce((a, b) => a + b, 0));
+const totalA = sumOf(byCat12, inA);
+const totalOther = meta.total12 - totalA;
+const perDay = Math.round(totalA / 365);
+const yoyAll = yoy ? pct(sumOf(yoy.current.byCat, inA), sumOf(yoy.prior.byCat, inA)) : null;
 
-// Busiest hour and weekday, all crime.
-const allHD = Array.from({ length: 168 }, (_, i) => hourDay.reduce((s: number, row: number[]) => s + row[i], 0));
+// Categories in each group, largest first.
+const membersOf = (g: number) => [...cats.keys()].filter((c) => catGroup[c] === g && byCat12[c] > 0).sort((a, b) => byCat12[b] - byCat12[a]);
+const shownGroups = groups.map((_, g) => g).filter((g) => membersOf(g).length);
+
+// Busiest hour and weekday, Group A.
+const allHD = Array.from({ length: 168 }, (_, i) => hourDay.reduce((s: number, row: number[], c: number) => s + (inA(c) ? row[i] : 0), 0));
 const byHour = Array.from({ length: 24 }, (_, h) => [0, 1, 2, 3, 4, 5, 6].reduce((s, d) => s + allHD[d * 24 + h], 0));
 const byDay = Array.from({ length: 7 }, (_, d) => byHour.reduce((s, _x, h) => s + allHD[d * 24 + h], 0));
 const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -42,9 +53,19 @@ const peakHour = byHour.map((v, h) => [v, h]).filter(([, h]) => h !== 0).sort((a
 const peakDay = byDay.indexOf(Math.max(...byDay));
 const quietDay = byDay.indexOf(Math.min(...byDay));
 
-// Year over year rows, largest volume first.
+// Year over year: one row per group, then its categories with at least
+// 100 incidents across the two years (smaller ones swing wildly in %).
+const yoyRow = (pick: (c: number) => boolean) => {
+  const now = sumOf(yoy.current.byCat, pick), before = sumOf(yoy.prior.byCat, pick);
+  return { now, before, change: pct(now, before) };
+};
 const yoyRows = yoy
-  ? order.map((c) => ({ c, now: yoy.current.byCat[c], before: yoy.prior.byCat[c], change: pct(yoy.current.byCat[c], yoy.prior.byCat[c]) }))
+  ? shownGroups.flatMap((g) => [
+      { kind: 'group', label: groupLabel(g), color: meta.groupColors[g], ...yoyRow((c) => catGroup[c] === g) },
+      ...(A_GROUPS.includes(g) ? membersOf(g) : [])
+        .filter((c) => yoy.current.byCat[c] + yoy.prior.byCat[c] >= 100)
+        .map((c) => ({ kind: 'cat', label: short[c], title: cats[c], color: meta.catColors[c], ...yoyRow((x) => x === c) })),
+    ])
   : [];
 const maxAbs = Math.max(10, ...yoyRows.map((r) => Math.abs(r.change ?? 0)));
 
@@ -52,7 +73,7 @@ const schema = {
   '@context': 'https://schema.org',
   '@type': 'Dataset',
   name: 'Kansas City, Missouri crime by the numbers',
-  description: `Monthly trends, year-over-year change, hour-by-weekday patterns, and neighborhood rankings for ${fmt(total12)} incidents reported to the Kansas City, Missouri Police Department, ${longDate(meta.start)} to ${longDate(meta.end)}.`,
+  description: `Monthly trends, year-over-year change, hour-by-weekday patterns, and neighborhood rankings for ${fmt(meta.total12)} incidents reported to the Kansas City, Missouri Police Department, ${longDate(meta.start)} to ${longDate(meta.end)}.`,
   url: 'https://geographyofcrime.com/kansas-city/',
   creator: { '@id': 'https://geographyofcrime.com/#grant-drawve' },
   isBasedOn: meta.sourceUrl || undefined,
@@ -63,7 +84,7 @@ const schema = {
 ---
 <Base
   title="Kansas City crime by the numbers"
-  description={`Kansas City, Missouri crime by the numbers: ${fmt(total12)} incidents in the last 12 months, ${sign(yoyAll)} year over year, when crime happens by hour and weekday, and which neighborhoods carry the most. Updated weekly from KCPD open data.`}
+  description={`Kansas City, Missouri crime by the numbers: ${fmt(totalA)} NIBRS Group A offenses in the last 12 months, ${sign(yoyAll)} year over year, when crime happens by hour and weekday, and which neighborhoods carry the most. Updated weekly from KCPD open data.`}
   schema={schema}
 >
   <section class="section">
@@ -77,9 +98,9 @@ const schema = {
 
       <ul class="tiles">
         <li>
-          <span class="big">{fmt(total12)}</span>
-          <span class="t-label">incidents in the last 12 months</span>
-          <span class="t-sub">about {fmt(perDay)} a day</span>
+          <span class="big">{fmt(totalA)}</span>
+          <span class="t-label">crimes against persons, property, and society in the last 12 months</span>
+          <span class="t-sub">About {fmt(perDay)} a day (NIBRS Group A), plus {fmt(totalOther)} Group B and unclassified reports</span>
         </li>
         <li>
           <span class="big">{sign(yoyAll)}</span>
@@ -102,12 +123,20 @@ const schema = {
 
   <section class="section kc" data-kc>
     <div class="wrap stack-lg">
-      <div class="filter" role="group" aria-label="Crime type for the charts below">
-        <span class="label">Show</span>
-        <div class="chips">
-          <button type="button" data-cat="-1" aria-pressed="true">All crime</button>
-          {order.map((c) => <button type="button" data-cat={c} aria-pressed="false" style={`--c: var(--cat-${c})`}><i aria-hidden="true"></i>{cats[c]}</button>)}
-        </div>
+      <div class="filter">
+        <label class="pick"><span class="label">Show</span>
+          <select data-pick>
+            <option value="A">All Group A: crimes against persons, property, and society</option>
+            {shownGroups.map((g) => (
+              <optgroup label={groupLabel(g)}>
+                <option value={`g:${g}`}>All {groupLabel(g).replace('Crimes', 'crimes')}</option>
+                {membersOf(g).map((c) => <option value={`c:${c}`}>{cats[c]} ({fmt(byCat12[c])})</option>)}
+              </optgroup>
+            ))}
+            <option value="all">Everything, including Group B and unclassified</option>
+          </select>
+        </label>
+        <p class="pick-note">Offense categories and groups follow the FBI's NIBRS standard.</p>
       </div>
 
       <figure class="chart">
@@ -120,10 +149,10 @@ const schema = {
           <summary>Table view</summary>
           <div class="tbl-wrap">
             <table>
-              <thead><tr><th scope="col">Month</th><th scope="col">All crime</th>{order.map((c) => <th scope="col">{cats[c]}</th>)}</tr></thead>
+              <thead><tr><th scope="col">Month</th><th scope="col">Group A total</th>{shownGroups.map((g) => <th scope="col">{groups[g]}</th>)}</tr></thead>
               <tbody>
                 {months.map((m: string, i: number) => (
-                  <tr><th scope="row">{monthName(m)}</th><td>{fmt(monthly.reduce((s: number, row: number[]) => s + row[i], 0))}</td>{order.map((c) => <td>{fmt(monthly[c][i])}</td>)}</tr>
+                  <tr><th scope="row">{monthName(m)}</th><td>{fmt(monthly.reduce((s: number, row: number[], c: number) => s + (inA(c) ? row[i] : 0), 0))}</td>{shownGroups.map((g) => <td>{fmt(monthly.reduce((s: number, row: number[], c: number) => s + (catGroup[c] === g ? row[i] : 0), 0))}</td>)}</tr>
                 ))}
               </tbody>
             </table>
@@ -147,12 +176,12 @@ const schema = {
       <div class="wrap">
         <div class="section-head">
           <h2>What changed: year over year</h2>
-          <p>{monthName(yoy.current.start, true)} to {monthName(yoy.current.end, true)}, compared with the same 12 months a year earlier. Small types swing more in percentage terms; check the counts.</p>
+          <p>{monthName(yoy.current.start, true)} to {monthName(yoy.current.end, true)}, compared with the same 12 months a year earlier. Group totals first, then each offense category with at least 100 incidents across the two years. Small categories swing more in percentage terms; check the counts.</p>
         </div>
         <ul class="yoy">
           {yoyRows.map((r) => (
-            <li>
-              <span class="y-name"><i style={`background: var(--cat-${r.c})`} aria-hidden="true"></i>{cats[r.c]}</span>
+            <li class={r.kind}>
+              <span class="y-name" title={r.title}><i style={`background: ${r.color}`} aria-hidden="true"></i>{r.label}</span>
               <span class="y-bar" aria-hidden="true">
                 <span class="axis"></span>
                 {r.change != null && (
@@ -181,7 +210,7 @@ const schema = {
             <h3>Most incidents</h3>
             <ol class="rank">
               {hoods.byCount.map((r: any) => (
-                <li><span class="r-name">Near {r.near}</span><span class="r-val">{fmt(r.total)}</span><span class="r-sub">Top named type: {cats[r.topCat].toLowerCase()} ({r.topShare}% of incidents)</span></li>
+                <li><span class="r-name">Near {r.near}</span><span class="r-val">{fmt(r.total)}</span><span class="r-sub">Top offense: {short[r.topCat].toLowerCase()} ({r.topShare}% of incidents)</span></li>
               ))}
             </ol>
           </div>
@@ -206,7 +235,8 @@ const schema = {
         <ul class="method">
           <li>Source: <a href={meta.sourceUrl} target="_blank" rel="noopener">{meta.source}</a>, pulled every Monday.</li>
           <li>Counted by report and offense, so a report with three victims counts once. Dates are when the offense began.</li>
-          <li>Offenses are grouped into eight types by their NIBRS code.</li>
+          <li>Crime types are the FBI's NIBRS offense categories, grouped by NIBRS "Crime Against": persons, property, or society (Group A). Robbery counts as a crime against property, as it does in NIBRS. Group B offenses (arrest-only, such as DUI and trespass) and unclassified reports are kept separate.</li>
+          <li>Each report is classified by its NIBRS code; when the code is blank, by its NIBRS offense name, then by KCPD's own offense label.</li>
           <li>Locations are aggregated to 150 m squares and block groups. No addresses, names, or demographics are downloaded or shown.</li>
           <li>These are reported crimes. Many crimes are never reported, and reporting rates differ by type and place.</li>
         </ul>
@@ -222,14 +252,10 @@ const schema = {
 </Base>
 
 <!-- Chart data for the browser: only the aggregates the charts need. -->
-<script type="application/json" id="kc-data" set:html={JSON.stringify({ cats, months, days, monthly, hourDay })} />
+<script type="application/json" id="kc-data" set:html={JSON.stringify({ cats, short, groups, catGroup, groupColors: meta.groupColors, catColors: meta.catColors, months, days, monthly, hourDay })} />
 
 <style>
   /* Charts use the same colorblind-safe crime colors as the map. */
-  .kc, .yoy {
-    --cat-0: #d55e00; --cat-1: #0072b2; --cat-2: #cc79a7; --cat-3: #e69f00;
-    --cat-4: #009e73; --cat-5: #56b4e9; --cat-6: #c9b800; --cat-7: #8a8f99;
-  }
   .note { color: var(--ink-2); font-size: var(--t-sm); max-width: 70ch; }
   .stack-lg { display: grid; gap: 3rem; }
 
@@ -241,14 +267,9 @@ const schema = {
 
   .filter { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; position: sticky; top: 3.9rem; z-index: 5; background: color-mix(in srgb, var(--paper) 94%, transparent); padding-block: 0.6rem; border-bottom: 1px solid var(--rule); }
   @media (max-width: 640px) { .filter { position: static; } }
-  .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-  .chips button {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    font: 500 var(--t-xs)/1 var(--body); padding: 0.45rem 0.7rem; border-radius: 999px; cursor: pointer;
-    border: 1px solid var(--rule); background: var(--card); color: var(--ink-2);
-  }
-  .chips i { width: 0.7rem; height: 0.7rem; border-radius: 2px; background: var(--c); }
-  .chips button[aria-pressed='true'] { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+  .pick { display: inline-flex; align-items: center; gap: 0.6rem; min-width: 0; max-width: 100%; }
+  .pick select { font: 500 var(--t-sm)/1.2 var(--body); color: var(--ink); background: var(--card); border: 1px solid var(--ink-2); border-radius: var(--radius); padding: 0.45rem 0.5rem; max-width: 100%; min-width: 0; }
+  .pick-note { color: var(--ink-2); font-size: var(--t-xs); }
 
   .chart { margin: 0; display: grid; gap: 1rem; min-width: 0; }
   .chart figcaption { display: grid; gap: 0.35rem; }
@@ -280,9 +301,11 @@ const schema = {
   th[scope='row'], thead th:first-child { text-align: left; }
 
   .yoy { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
-  .yoy li { display: grid; grid-template-columns: 10rem minmax(6rem, 1fr) 4.5rem 9rem; gap: 0.75rem; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid var(--rule); }
+  .yoy li { display: grid; grid-template-columns: 14rem minmax(6rem, 1fr) 4.5rem 9rem; gap: 0.75rem; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid var(--rule); }
   @media (max-width: 640px) { .yoy li { grid-template-columns: 1fr auto; } .y-bar { grid-column: 1 / -1; grid-row: 2; } .y-n { grid-column: 1 / -1; } }
-  .y-name { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; }
+  .y-name { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; }
+  .yoy li.cat .y-name { font-weight: 450; padding-left: 1.25rem; font-size: var(--t-sm); }
+  .yoy li.cat { padding-block: 0.45rem; }
   .y-name i { width: 0.75rem; height: 0.75rem; border-radius: 2px; flex: none; }
   .y-bar { position: relative; height: 0.9rem; }
   .y-bar .axis { position: absolute; left: 50%; top: -0.2rem; bottom: -0.2rem; width: 1px; background: var(--ink-2); }
@@ -311,7 +334,8 @@ const schema = {
   // Charts. Plain SVG built from the aggregates in #kc-data, no
   // chart library. One crime-type filter drives both charts.
   // ─────────────────────────────────────────────────────────────
-  type Data = { cats: string[]; months: string[]; days: number[]; monthly: number[][]; hourDay: number[][] };
+  type Data = { cats: string[]; short: string[]; groups: string[]; catGroup: number[]; groupColors: string[]; catColors: string[];
+    months: string[]; days: number[]; monthly: number[][]; hourDay: number[][] };
   const D: Data = JSON.parse(document.getElementById('kc-data')!.textContent!);
   const NS = 'http://www.w3.org/2000/svg';
   const el = (tag: string, attrs: Record<string, string | number> = {}, parent?: Element) => {
@@ -325,8 +349,17 @@ const schema = {
     const [y, m] = mk.split('-').map(Number);
     return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: long ? 'long' : 'short', year: long ? 'numeric' : '2-digit', timeZone: 'UTC' });
   };
-  const sum = (rows: number[][], i: number) => rows.reduce((s, r) => s + r[i], 0);
-  let cat = -1; // -1 = all crime
+  // The current selection: which categories to add up, what to call it, what color to draw it.
+  const A = ['Persons', 'Property', 'Society'].map((g) => D.groups.indexOf(g));
+  let pick = { members: D.cats.map((_, c) => c).filter((c) => A.includes(D.catGroup[c])), name: 'Group A offenses', color: 'var(--ink)' };
+  function setPick(v: string) {
+    const all = D.cats.map((_, c) => c);
+    if (v === 'all') pick = { members: all, name: 'All reports', color: 'var(--ink)' };
+    else if (v === 'A') pick = { members: all.filter((c) => A.includes(D.catGroup[c])), name: 'Group A offenses', color: 'var(--ink)' };
+    else if (v.startsWith('g:')) { const g = +v.slice(2); pick = { members: all.filter((c) => D.catGroup[c] === g), name: A.includes(g) ? `Crimes against ${D.groups[g].toLowerCase()}` : D.groups[g], color: D.groupColors[g] }; }
+    else { const c = +v.slice(2); pick = { members: [c], name: D.cats[c], color: D.catColors[c] }; }
+  }
+  const sum = (rows: number[][], i: number) => pick.members.reduce((s, c) => s + rows[c][i], 0);
 
   // ── Trend line ──
   const trendBox = document.querySelector<HTMLElement>('[data-trend]')!;
@@ -334,14 +367,14 @@ const schema = {
     trendBox.replaceChildren();
     const W = Math.max(320, trendBox.clientWidth), H = W < 560 ? 240 : 300;
     const m = { t: 14, r: 12, b: 28, l: 40 };
-    const vals = D.months.map((_, i) => (cat < 0 ? sum(D.monthly, i) : D.monthly[cat][i]) / D.days[i]);
+    const vals = D.months.map((_, i) => sum(D.monthly, i) / D.days[i]);
     // Y axis starts at zero so the size of change isn't exaggerated.
     const step = niceStep(Math.max(...vals) / 4);
     const yMax = Math.ceil(Math.max(...vals) / step) * step || 1;
     const x = (i: number) => m.l + (i / (vals.length - 1)) * (W - m.l - m.r);
     const y = (v: number) => H - m.b - (v / yMax) * (H - m.t - m.b);
-    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${cat < 0 ? 'All crime' : D.cats[cat]}: incidents per day by month, ${mLabel(D.months[0], true)} to ${mLabel(D.months.at(-1)!, true)}. Full numbers in the table view.` }, trendBox);
-    (svg as SVGElement).style.setProperty('--sc', cat < 0 ? 'var(--ink)' : `var(--cat-${cat})`);
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${pick.name}: incidents per day by month, ${mLabel(D.months[0], true)} to ${mLabel(D.months.at(-1)!, true)}. Full numbers in the table view.` }, trendBox);
+    (svg as SVGElement).style.setProperty('--sc', pick.color);
     for (let v = 0; v <= yMax + 1e-9; v += step) {
       el('line', { class: 'grid', x1: m.l, x2: W - m.r, y1: y(v), y2: y(v) }, svg);
       el('text', { class: 'tick', x: m.l - 6, y: y(v) + 4, 'text-anchor': 'end' }, svg).textContent = fmt(v);
@@ -367,7 +400,7 @@ const schema = {
       const i = Math.max(0, Math.min(end, Math.round(((px - m.l) / (W - m.l - m.r)) * end)));
       cross.setAttribute('x1', String(x(i))); cross.setAttribute('x2', String(x(i))); cross.setAttribute('visibility', 'visible');
       dot.setAttribute('cx', String(x(i))); dot.setAttribute('cy', String(y(vals[i]))); dot.setAttribute('visibility', 'visible');
-      const count = cat < 0 ? sum(D.monthly, i) : D.monthly[cat][i];
+      const count = sum(D.monthly, i);
       tip.innerHTML = `<b>${fmt(vals[i])} a day</b>${mLabel(D.months[i], true)} · ${count.toLocaleString('en-US')} total`;
       tip.hidden = false;
       const left = (x(i) / W) * r.width;
@@ -399,7 +432,7 @@ const schema = {
   };
   function drawHeat() {
     heatBox.replaceChildren();
-    const vals = Array.from({ length: 168 }, (_, i) => (cat < 0 ? sum(D.hourDay, i) : D.hourDay[cat][i]));
+    const vals = Array.from({ length: 168 }, (_, i) => sum(D.hourDay, i));
     // Scale from the quietest to the busiest hour so the pattern stands out.
     const max = Math.max(...vals) || 1, min = Math.min(...vals);
     // Phones: hours run down, days across. Wider screens: hours across.
@@ -410,7 +443,7 @@ const schema = {
     const cw = (W - lab) / cols, ch = tall ? Math.min(22, cw * 0.55) : Math.min(34, cw * 0.95);
     const H = top + rows * ch + 4;
     const total = vals.reduce((a, b) => a + b, 0);
-    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${cat < 0 ? 'All crime' : D.cats[cat]} by hour and day of week, last 12 months.` }, heatBox);
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${pick.name} by hour and day of week, last 12 months.` }, heatBox);
     const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; heatBox.appendChild(tip);
     for (let d = 0; d < 7; d++) {
       for (let h = 0; h < 24; h++) {
@@ -438,13 +471,9 @@ const schema = {
     }
   }
 
-  // ── Filter chips ──
-  const chips = [...document.querySelectorAll<HTMLButtonElement>('[data-kc] [data-cat]')];
-  chips.forEach((b) => b.addEventListener('click', () => {
-    cat = Number(b.dataset.cat);
-    chips.forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
-    drawTrend(); drawHeat();
-  }));
+  // ── Filter ──
+  const sel = document.querySelector<HTMLSelectElement>('[data-pick]')!;
+  sel.addEventListener('change', () => { setPick(sel.value); drawTrend(); drawHeat(); });
 
   drawTrend(); drawHeat();
   let rt = 0;

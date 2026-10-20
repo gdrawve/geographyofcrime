@@ -134,9 +134,10 @@ def build(incidents: list[tuple], categories: list[str], recent_from: datetime,
             if not total:
                 continue
             ctr = b["geom"].representative_point()
-            # Most common NAMED type: "Other" (the last category) is a
-            # catch-all, so it is skipped when anything else was recorded.
-            named = range(nc - 1) if sum(by[:-1]) else range(nc)
+            # Most common SPECIFIC type: catch-alls ("Unclassified", NIBRS
+            # "All Other Offenses") are skipped when anything else was recorded.
+            vague = {i for i, c in enumerate(categories) if c in ("Unclassified", "All Other Offenses")}
+            named = [c for c in range(nc) if c not in vague and by[c]] or list(range(nc))
             top = max(named, key=lambda c: by[c])
             rows.append({
                 "id": b["id"],
@@ -168,7 +169,8 @@ def build(incidents: list[tuple], categories: list[str], recent_from: datetime,
 
     return {
         "meta": {
-            **{k: meta[k] for k in ("city", "source", "sourceUrl", "updated", "demo") if k in meta},
+            **{k: meta[k] for k in ("city", "source", "sourceUrl", "updated", "demo",
+                                    "short", "groups", "catGroup", "groupColors", "catColors") if k in meta},
             "start": recent_from.date().isoformat() if recent else None,
             "end": last.date().isoformat(),
             "total12": len(recent),
