@@ -37,6 +37,7 @@ import math
 import os
 import random
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import defaultdict
@@ -192,36 +193,85 @@ def find_yearly_dataset(cfg: dict, year: int) -> str | None:
     return None
 
 
+# Older yearly datasets sometimes name columns differently. These are
+# the alternatives tried, in order, when a configured name is missing.
+FIELD_ALTERNATIVES = {
+    "date": ["from_date", "fromdate", "from_dt", "offense_date", "reported_date"],
+    "point": ["location", "location_1", "geocoded_column", "geo_location"],
+    "offense": ["ibrs", "ibrs_code", "nibrs", "nibrs_code", "offense_code"],
+    "id": ["report", "report_no", "report_number", "case_number"],
+}
+
+
+def resolve_fields(cfg: dict, ds: str) -> dict | None:
+    """
+    Look at one row of a dataset and match our field names to its columns.
+    Matching ignores case and underscores ("Report_No" = "reportno").
+    """
+    sample = fetch_json(f"https://{cfg['domain']}/resource/{ds}.json?$limit=1")
+    if not sample:
+        return None
+    norm = lambda k: k.lower().replace("_", "")
+    cols = {norm(k): k for k in sample[0]}
+    out = {}
+    for key, configured in cfg["fields"].items():
+        for cand in [configured] + FIELD_ALTERNATIVES.get(key, []):
+            if norm(cand) in cols:
+                out[key] = cols[norm(cand)]
+                break
+    missing = [k for k in ("date", "point", "offense") if k not in out]
+    if missing:
+        print(f"  columns available: {', '.join(sorted(sample[0]))}", file=sys.stderr)
+        print(f"  could not find: {', '.join(missing)}", file=sys.stderr)
+        return None
+    return out
+
+
 def fetch_socrata_yearly(cfg: dict, since: date) -> list[dict]:
     """
-    Pull every yearly dataset that overlaps the window (usually this year
-    and last year), then flatten the GeoJSON point into lat/lon.
+    Pull every yearly dataset that overlaps the window (for a two-year
+    pull, usually three datasets), then flatten the GeoJSON point into
+    lat/lon. A year that can't be read is skipped with a warning rather
+    than failing the whole refresh.
     """
-    f = cfg["fields"]
     rows = []
     for year in range(since.year, date.today().year + 1):
         ds = find_yearly_dataset(cfg, year)
         if not ds:
-            print(f"  no dataset found for {year}", file=sys.stderr)
+            print(f"::warning::No KCPD dataset found for {year}", file=sys.stderr)
             continue
-        offset = 0
-        while True:
-            params = {
-                "$select": f"{f['id']},{f['date']},{f['offense']},{f['point']}",
-                "$where": f"{f['date']} >= '{since.isoformat()}T00:00:00' AND {f['point']} IS NOT NULL",
-                "$order": ":id",
-                "$limit": PAGE_SIZE,
-                "$offset": offset,
-            }
-            page = fetch_json(f"https://{cfg['domain']}/resource/{ds}.json?" + urllib.parse.urlencode(params))
-            for r in page:
-                lon, lat = (r.get(f["point"]) or {}).get("coordinates", [None, None])
-                rows.append({"id": r.get(f["id"]), "date": r.get(f["date"]),
-                             "offense": r.get(f["offense"]), "lat": lat, "lon": lon})
-            print(f"  {year}: fetched {len(rows):,} rows so far", file=sys.stderr)
-            if len(page) < PAGE_SIZE:
-                break
-            offset += PAGE_SIZE
+        try:
+            f = resolve_fields(cfg, ds)
+        except urllib.error.HTTPError as err:
+            print(f"::warning::{year} ({ds}): could not read a sample row ({err})", file=sys.stderr)
+            continue
+        if not f:
+            print(f"::warning::{year} ({ds}): column names did not match; skipped", file=sys.stderr)
+            continue
+        offset, n_year = 0, 0
+        try:
+            while True:
+                params = {
+                    "$select": ",".join(f[k] for k in ("id", "date", "offense", "point") if k in f),
+                    "$where": f"{f['date']} >= '{since.isoformat()}T00:00:00' AND {f['point']} IS NOT NULL",
+                    "$order": ":id",
+                    "$limit": PAGE_SIZE,
+                    "$offset": offset,
+                }
+                page = fetch_json(f"https://{cfg['domain']}/resource/{ds}.json?" + urllib.parse.urlencode(params))
+                for r in page:
+                    lon, lat = (r.get(f["point"]) or {}).get("coordinates", [None, None])
+                    rows.append({"id": r.get(f.get("id", "")), "date": r.get(f["date"]),
+                                 "offense": r.get(f["offense"]), "lat": lat, "lon": lon})
+                n_year += len(page)
+                if len(page) < PAGE_SIZE:
+                    break
+                offset += PAGE_SIZE
+        except urllib.error.HTTPError as err:
+            body = err.read().decode("utf-8", "replace")[:300] if hasattr(err, "read") else ""
+            print(f"::warning::{year} ({ds}): query failed ({err}) {body}", file=sys.stderr)
+            continue
+        print(f"  {year}: {n_year:,} rows", file=sys.stderr)
     return rows
 
 
