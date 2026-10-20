@@ -35,7 +35,12 @@ jobs:
         with:
           path: dist
 
+  # Publishing is switched off until launch, so pushes don't email you
+  # failure notices. To go live: make the repo public, set Settings →
+  # Pages → Source to "GitHub Actions", then add a repository variable
+  # SITE_LIVE = true (Settings → Secrets and variables → Actions → Variables).
   deploy:
+    if: ${{ vars.SITE_LIVE == 'true' }}
     needs: build
     runs-on: ubuntu-latest
     environment:
