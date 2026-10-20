@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // VIDEO UPLOAD DATES, for search-engine structured data
 // Runs in the weekly refresh. For every YouTube ID in src/data/, reads
-// the video's real upload date from its YouTube page and saves it to
+// the video's real upload date from YouTube and saves it to
 // src/data/video-dates.json. Pages only describe a video to search
 // engines (schema.org VideoObject) when its date is known; dates are
 // never guessed. Dates already saved are kept, so each video is looked
@@ -25,34 +25,32 @@ for (const f of await readdir(join(ROOT, 'src', 'data'))) {
 let dates = {};
 try { dates = JSON.parse(await readFile(OUT, 'utf8')); } catch {}
 
-// The watch page carries the date in its embedded metadata, e.g.
-// "uploadDate":"2021-03-04T09:00:00-08:00" or <meta itemprop="uploadDate" content="2021-03-04">.
-const PATTERNS = [/"uploadDate":"([^"]+)"/, /itemprop="uploadDate" content="([^"]+)"/, /"publishDate":"([^"]+)"/];
-const queue = [...ids].filter((id) => !dates[id]);
-let found = 0; const missed = [];
-async function worker() {
-  while (queue.length) {
-    const id = queue.shift();
+// Dates come from the YouTube Data API (videos.list → snippet.publishedAt),
+// 50 videos per request. It needs a free API key stored as the GitHub
+// secret YOUTUBE_API_KEY. Without one, nothing changes and pages simply
+// leave out VideoObject markup. (Reading dates from YouTube's own pages
+// doesn't work from GitHub's servers: YouTube shows them a bot check.)
+const key = process.env.YOUTUBE_API_KEY;
+const todo = [...ids].filter((id) => !dates[id]);
+let found = 0;
+if (!key) {
+  console.log(`::notice::Video dates skipped: no YOUTUBE_API_KEY secret (${todo.length} videos without dates)`);
+} else {
+  for (let i = 0; i < todo.length; i += 50) {
+    const batch = todo.slice(i, i + 50);
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${batch.join(',')}&key=${encodeURIComponent(key)}`;
     try {
-      // The consent cookies skip YouTube's cookie-choice page.
-      const r = await fetch(`https://www.youtube.com/watch?v=${id}&hl=en&gl=US`, { headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9', Cookie: 'CONSENT=YES+cb; SOCS=CAI' } });
-      const html = await r.text();
-      if (!missed.length && !PATTERNS.some((p) => p.test(html))) {
-        // Report what came back for the first miss, to diagnose blocks.
-        const t = (html.match(/<title>([^<]*)/) || [])[1] || '';
-        console.log(`::notice::First miss ${id}: HTTP ${r.status}, ${html.length} bytes, title "${t.slice(0, 80)}"`);
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      for (const v of (await r.json()).items ?? []) {
+        if (v.snippet?.publishedAt) { dates[v.id] = v.snippet.publishedAt; found++; }
       }
-      const m = PATTERNS.map((p) => html.match(p)).find(Boolean);
-      const iso = m && !Number.isNaN(Date.parse(m[1])) ? m[1] : null;
-      if (iso) { dates[id] = iso; found++; } else missed.push(id);
-    } catch { missed.push(id); }
+    } catch (err) { console.log(`::warning::YouTube API request failed (${err.message})`); }
   }
+  const still = todo.filter((id) => !dates[id]);
+  if (still.length) console.log(`::warning::No upload date from YouTube for: ${still.join(', ')}`);
 }
-await Promise.all(Array.from({ length: 6 }, worker));
 // Keep only IDs still on the site, sorted for tidy diffs.
 const out = Object.fromEntries([...ids].filter((id) => dates[id]).sort().map((id) => [id, dates[id]]));
 await writeFile(OUT, JSON.stringify(out, null, 1) + '\n');
 console.log(`Video dates: ${Object.keys(out).length} of ${ids.size} known (${found} new)`);
-if (missed.length) console.log(`::warning::No upload date found for: ${missed.join(', ')}`);

@@ -49,6 +49,8 @@ jobs:
       # Dead YouTube videos and outside links show as warnings on this
       # run's summary page. Never fails the run.
       - name: Video upload dates (for search structured data)
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: node scripts/fetch_video_dates.mjs || echo "::warning::Video dates could not be fetched"
       - name: Check for broken links
         run: python scripts/check_links.py || echo "::warning::Link check could not run"
