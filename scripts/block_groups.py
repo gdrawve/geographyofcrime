@@ -91,7 +91,7 @@ def load_census(bg_cfg: dict, bbox: list[float] | None = None) -> list[dict]:
     # the map still works: counts show, and rates are switched off.
     print("  downloading ACS population …", file=sys.stderr)
     pop = {}
-    key = os.environ.get("CENSUS_API_KEY")
+    key = (os.environ.get("CENSUS_API_KEY") or "").strip()  # ignore stray spaces/newlines from pasting
     for county in bg_cfg["counties"]:
         params = {"get": "B01003_001E", "for": "block group:*",
                   "in": f"state:{st} county:{county} tract:*"}
