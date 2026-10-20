@@ -28,6 +28,7 @@ export const GET: APIRoute = () => {
     `- [Tools](${u('/tools/')}): the free CAP Index Crime Analysis Excel Toolkit (16 Excel tools for data prep, hot streets, crime concentration, trends, and briefings) and open Python scripts`,
     `- [Research](${u('/research/')}): ${research.meta.works} publications, research themes, and co-author network`,
     `- [Talks and writing](${u('/talks/')}): workshops, guest appearances, and articles`,
+    `- [Kansas City crime by the numbers](${u('/kansas-city/')}): monthly trends, year-over-year change, hour-by-weekday patterns, and neighborhood rankings from KCPD open data, updated weekly`,
     `- [Speaking kit](${u('/speaking/')}): bios, talk topics, formats, and headshots for event organizers`,
     '',
     '## Research themes',

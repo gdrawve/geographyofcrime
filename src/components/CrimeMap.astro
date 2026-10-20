@@ -12,7 +12,7 @@
 // built weekly by scripts/. Only aggregated counts are published.
 import 'maplibre-gl/dist/maplibre-gl.css';
 ---
-<section class="crime-map" aria-label="Kansas City crime map">
+<section class="crime-map" id="map" aria-label="Kansas City crime map">
   <div class="cm-controls wrap">
     <div class="cm-row">
     <div class="seg" role="group" aria-label="Map view">
@@ -82,6 +82,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
       </div>
 
 
+      <p class="more-kc"><a href="/kansas-city/">Kansas City by the numbers: trends, peak hours, and neighborhood rankings →</a></p>
       <p class="label src" data-src-line></p>
     </aside>
   </div>
@@ -135,7 +136,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 16.5rem), 1fr));
     border-top: 1px solid var(--rule); padding-block: 1.4rem 1.6rem; min-width: 0;
   }
-  .cm-panel > .label, .cm-panel > .src { grid-column: 1 / -1; }
+  .cm-panel > .label, .cm-panel > .src, .cm-panel > .more-kc { grid-column: 1 / -1; }
+  .more-kc { font-weight: 600; }
   .tk { display: grid; gap: 0.45rem; align-content: start; min-width: 0; }
   .tk-big { font-family: var(--display); font-stretch: 112%; font-weight: 800; font-size: 2.3rem; line-height: 1; color: var(--hot-ink); font-variant-numeric: tabular-nums; }
   .tk-text { font-size: var(--t-sm); color: var(--ink-2); }

@@ -1,0 +1,452 @@
+---
+// Kansas City by the numbers. Every figure comes from
+// src/data/kc-stats.json, which the weekly refresh rebuilds from KCPD's
+// open data (scripts/crime_stats.py). Headline numbers and tables are
+// written into the HTML at build time, so search engines and AI tools
+// can read them; the charts are drawn in the browser from the same data.
+import Base from '../layouts/Base.astro';
+import stats from '../data/kc-stats.json';
+
+const { meta, months, days, monthly, yoy, hourDay, concentration: conc, neighborhoods: hoods } = stats as any;
+const cats: string[] = meta.categories;
+const nc = cats.length;
+const fmt = (n: number) => n.toLocaleString('en-US');
+const monthName = (mk: string, long = false) => {
+  const [y, m] = mk.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: long ? 'long' : 'short', year: 'numeric', timeZone: 'UTC' });
+};
+const longDate = (iso: string) => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
+// ── Headline figures ──
+const total12 = meta.total12;
+const perDay = Math.round(total12 / 365);
+const pct = (a: number, b: number) => (b ? ((a - b) / b) * 100 : null);
+const yoyAll = yoy ? pct(yoy.current.total, yoy.prior.total) : null;
+const sign = (v: number | null) => (v == null ? '–' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%`);
+
+// Totals by type over the last 12 months (from the hour × day grid).
+const byCat12 = hourDay.map((row: number[]) => row.reduce((a, b) => a + b, 0));
+// Largest first, with the catch-all "Other" (last category) always at the end.
+const other = nc - 1;
+const order = [...cats.keys()].filter((c) => byCat12[c] > 0 && c !== other).sort((a, b) => byCat12[b] - byCat12[a]).concat(byCat12[other] > 0 ? [other] : []);
+const topCat = order[0];
+
+// Busiest hour and weekday, all crime.
+const allHD = Array.from({ length: 168 }, (_, i) => hourDay.reduce((s: number, row: number[]) => s + row[i], 0));
+const byHour = Array.from({ length: 24 }, (_, h) => [0, 1, 2, 3, 4, 5, 6].reduce((s, d) => s + allHD[d * 24 + h], 0));
+const byDay = Array.from({ length: 7 }, (_, d) => byHour.reduce((s, _x, h) => s + allHD[d * 24 + h], 0));
+const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const hourName = (h: number) => (h === 0 ? '12 am' : h < 12 ? `${h} am` : h === 12 ? '12 pm' : `${h - 12} pm`);
+// Ignore midnight when naming the busiest hour, since unknown times are often logged as 00:00.
+const peakHour = byHour.map((v, h) => [v, h]).filter(([, h]) => h !== 0).sort((a, b) => b[0] - a[0])[0][1];
+const peakDay = byDay.indexOf(Math.max(...byDay));
+const quietDay = byDay.indexOf(Math.min(...byDay));
+
+// Year over year rows, largest volume first.
+const yoyRows = yoy
+  ? order.map((c) => ({ c, now: yoy.current.byCat[c], before: yoy.prior.byCat[c], change: pct(yoy.current.byCat[c], yoy.prior.byCat[c]) }))
+  : [];
+const maxAbs = Math.max(10, ...yoyRows.map((r) => Math.abs(r.change ?? 0)));
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: 'Kansas City, Missouri crime by the numbers',
+  description: `Monthly trends, year-over-year change, hour-by-weekday patterns, and neighborhood rankings for ${fmt(total12)} incidents reported to the Kansas City, Missouri Police Department, ${longDate(meta.start)} to ${longDate(meta.end)}.`,
+  url: 'https://geographyofcrime.com/kansas-city/',
+  creator: { '@id': 'https://geographyofcrime.com/#grant-drawve' },
+  isBasedOn: meta.sourceUrl || undefined,
+  temporalCoverage: `${months[0]}/${meta.end}`,
+  spatialCoverage: { '@type': 'Place', name: 'Kansas City, Missouri' },
+  dateModified: meta.updated,
+};
+---
+<Base
+  title="Kansas City crime by the numbers"
+  description={`Kansas City, Missouri crime by the numbers: ${fmt(total12)} incidents in the last 12 months, ${sign(yoyAll)} year over year, when crime happens by hour and weekday, and which neighborhoods carry the most. Updated weekly from KCPD open data.`}
+  schema={schema}
+>
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Kansas City, Missouri · Updated {longDate(meta.updated)}</p>
+        <h1>Kansas City crime by the numbers</h1>
+        <p class="lede">A year of police-reported crime, counted and charted. It updates every Monday from KCPD's open data. The <a href="/#map">interactive map</a> shows where it happens.</p>
+        {meta.demo && <p class="note">Preview: these numbers are simulated until the next data refresh.</p>}
+      </div>
+
+      <ul class="tiles">
+        <li>
+          <span class="big">{fmt(total12)}</span>
+          <span class="t-label">incidents in the last 12 months</span>
+          <span class="t-sub">about {fmt(perDay)} a day</span>
+        </li>
+        <li>
+          <span class="big">{sign(yoyAll)}</span>
+          <span class="t-label">vs. the year before</span>
+          {yoy && <span class="t-sub">{monthName(yoy.current.start)}–{monthName(yoy.current.end)} vs. prior 12 months</span>}
+        </li>
+        <li>
+          <span class="big">{conc.pctCellsForHalf}%</span>
+          <span class="t-label">of places hold half of all crime</span>
+          <span class="t-sub">{fmt(conc.cellsForHalf)} of {fmt(conc.occupiedCells)} {conc.cellMeters} m squares with any crime</span>
+        </li>
+        <li>
+          <span class="big">{dayNames[peakDay].slice(0, 3)} · {hourName(peakHour)}</span>
+          <span class="t-label">busiest day and hour</span>
+          <span class="t-sub">{dayNames[quietDay]} is the quietest day</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section kc" data-kc>
+    <div class="wrap stack-lg">
+      <div class="filter" role="group" aria-label="Crime type for the charts below">
+        <span class="label">Show</span>
+        <div class="chips">
+          <button type="button" data-cat="-1" aria-pressed="true">All crime</button>
+          {order.map((c) => <button type="button" data-cat={c} aria-pressed="false" style={`--c: var(--cat-${c})`}><i aria-hidden="true"></i>{cats[c]}</button>)}
+        </div>
+      </div>
+
+      <figure class="chart">
+        <figcaption>
+          <h2>The trend: incidents per day, by month</h2>
+          <p>The last 24 complete months. Daily rates keep short months like February from looking like drops. The newest partial month is left out because reports keep arriving for weeks.</p>
+        </figcaption>
+        <div class="trend" data-trend></div>
+        <details>
+          <summary>Table view</summary>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th scope="col">Month</th><th scope="col">All crime</th>{order.map((c) => <th scope="col">{cats[c]}</th>)}</tr></thead>
+              <tbody>
+                {months.map((m: string, i: number) => (
+                  <tr><th scope="row">{monthName(m)}</th><td>{fmt(monthly.reduce((s: number, row: number[]) => s + row[i], 0))}</td>{order.map((c) => <td>{fmt(monthly[c][i])}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </figure>
+
+      <figure class="chart">
+        <figcaption>
+          <h2>When it happens: hour by day of week</h2>
+          <p>Last 12 months. Colors run from the quietest hour of the week (light) to the busiest (dark). Sharp spikes at noon or midnight often reflect estimated times, such as a theft discovered after the fact.{meta.midnightShare >= 3 && ` About ${meta.midnightShare}% of reports list exactly midnight, often because the real time is unknown, so the 12 am row runs high.`}</p>
+        </figcaption>
+        <div class="heat" data-heat></div>
+        <div class="heat-key" aria-hidden="true"><span>Fewer</span><i></i><span>More</span></div>
+      </figure>
+    </div>
+  </section>
+
+  {yoy && (
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>What changed: year over year</h2>
+          <p>{monthName(yoy.current.start, true)} to {monthName(yoy.current.end, true)}, compared with the same 12 months a year earlier. Small types swing more in percentage terms; check the counts.</p>
+        </div>
+        <ul class="yoy">
+          {yoyRows.map((r) => (
+            <li>
+              <span class="y-name"><i style={`background: var(--cat-${r.c})`} aria-hidden="true"></i>{cats[r.c]}</span>
+              <span class="y-bar" aria-hidden="true">
+                <span class="axis"></span>
+                {r.change != null && (
+                  <b class={r.change >= 0 ? 'up' : 'down'} style={`--w: ${(Math.abs(r.change) / maxAbs) * 50}%`}></b>
+                )}
+              </span>
+              <span class="y-val">{sign(r.change)}</span>
+              <span class="y-n">{fmt(r.before)} → {fmt(r.now)}</span>
+            </li>
+          ))}
+        </ul>
+        <p class="note">Up means more incidents. Shifts can also reflect changes in reporting or classification, not just in crime.</p>
+      </div>
+    </section>
+  )}
+
+  {hoods && (
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Where it concentrates: neighborhoods</h2>
+          <p>Census block groups, the smallest areas with population counts, labeled with the nearest named neighborhood. Half of all incidents fell in {hoods.bgsForHalf} of {hoods.blockGroups} block groups.</p>
+        </div>
+        <div class="ranks">
+          <div class="stack">
+            <h3>Most incidents</h3>
+            <ol class="rank">
+              {hoods.byCount.map((r: any) => (
+                <li><span class="r-name">Near {r.near}</span><span class="r-val">{fmt(r.total)}</span><span class="r-sub">Top named type: {cats[r.topCat].toLowerCase()} ({r.topShare}% of incidents)</span></li>
+              ))}
+            </ol>
+          </div>
+          <div class="stack">
+            <h3>Highest rate per 1,000 residents</h3>
+            <ol class="rank">
+              {hoods.byRate.map((r: any) => (
+                <li><span class="r-name">Near {r.near}</span><span class="r-val">{r.rate.toFixed(0)}</span><span class="r-sub">{fmt(r.total)} incidents, {fmt(r.pop)} residents</span></li>
+              ))}
+            </ol>
+            <p class="note">Block groups with fewer than {fmt(hoods.minPop)} residents are left out; a few incidents in a tiny population produce misleading rates. Downtown and commercial areas rank high because many visitors, few residents.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  )}
+
+  <section class="section">
+    <div class="wrap two">
+      <div class="stack">
+        <h2>How these numbers are made</h2>
+        <ul class="method">
+          <li>Source: <a href={meta.sourceUrl} target="_blank" rel="noopener">{meta.source}</a>, pulled every Monday.</li>
+          <li>Counted by report and offense, so a report with three victims counts once. Dates are when the offense began.</li>
+          <li>Offenses are grouped into eight types by their NIBRS code.</li>
+          <li>Locations are aggregated to 150 m squares and block groups. No addresses, names, or demographics are downloaded or shown.</li>
+          <li>These are reported crimes. Many crimes are never reported, and reporting rates differ by type and place.</li>
+        </ul>
+      </div>
+      <div class="stack">
+        <h2>Do this for your city</h2>
+        <p>The scripts behind this page are open. Point them at another city's open data portal to get the same map and statistics.</p>
+        <p><a class="btn ghost" href="https://github.com/gdrawve/geographyofcrime/tree/main/scripts" target="_blank" rel="noopener">See the scripts on GitHub</a></p>
+        <p>Prefer Excel? The free <a href="/tools/">Crime Analysis Excel Toolkit</a> builds the hour-by-day grid, trends, and percent change from any incident export.</p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<!-- Chart data for the browser: only the aggregates the charts need. -->
+<script type="application/json" id="kc-data" set:html={JSON.stringify({ cats, months, days, monthly, hourDay })} />
+
+<style>
+  /* Charts use the same colorblind-safe crime colors as the map. */
+  .kc, .yoy {
+    --cat-0: #d55e00; --cat-1: #0072b2; --cat-2: #cc79a7; --cat-3: #e69f00;
+    --cat-4: #009e73; --cat-5: #56b4e9; --cat-6: #c9b800; --cat-7: #8a8f99;
+  }
+  .note { color: var(--ink-2); font-size: var(--t-sm); max-width: 70ch; }
+  .stack-lg { display: grid; gap: 3rem; }
+
+  .tiles { list-style: none; margin: 2rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); border-top: 1.5px solid var(--ink); }
+  .tiles li { display: grid; gap: 0.3rem; align-content: start; padding: 1.2rem 1.25rem 1.4rem 0; border-bottom: 1px solid var(--rule); }
+  .big { font-family: var(--display); font-stretch: 125%; font-weight: 850; font-size: clamp(2rem, 1.5rem + 1.6vw, 2.8rem); line-height: 1; color: var(--hot-ink); }
+  .t-label { font-weight: 650; }
+  .t-sub { color: var(--ink-2); font-size: var(--t-sm); }
+
+  .filter { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; position: sticky; top: 3.9rem; z-index: 5; background: color-mix(in srgb, var(--paper) 94%, transparent); padding-block: 0.6rem; border-bottom: 1px solid var(--rule); }
+  @media (max-width: 640px) { .filter { position: static; } }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .chips button {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font: 500 var(--t-xs)/1 var(--body); padding: 0.45rem 0.7rem; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--rule); background: var(--card); color: var(--ink-2);
+  }
+  .chips i { width: 0.7rem; height: 0.7rem; border-radius: 2px; background: var(--c); }
+  .chips button[aria-pressed='true'] { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+
+  .chart { margin: 0; display: grid; gap: 1rem; min-width: 0; }
+  .chart figcaption { display: grid; gap: 0.35rem; }
+  .chart figcaption p { color: var(--ink-2); font-size: var(--t-sm); max-width: 72ch; }
+  .chart h2 { font-size: var(--t-xl); }
+  .trend { position: relative; min-height: 18rem; }
+  .trend :global(svg), .heat :global(svg) { display: block; width: 100%; height: auto; overflow: visible; }
+  .trend :global(.grid) { stroke: var(--rule); stroke-width: 1; }
+  .trend :global(.tick) { fill: var(--ink-2); font: 400 11px var(--mono); }
+  .trend :global(.line) { fill: none; stroke: var(--sc, var(--ink)); stroke-width: 2.25; stroke-linejoin: round; }
+  .trend :global(.area) { fill: var(--sc, var(--ink)); opacity: 0.08; }
+  .trend :global(.dot) { fill: var(--sc, var(--ink)); stroke: var(--card); stroke-width: 2; }
+  .trend :global(.hit) { fill: transparent; cursor: crosshair; }
+  .trend :global(.cross) { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 2 3; }
+  .tip { position: absolute; pointer-events: none; background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 0.45rem 0.6rem; font-size: var(--t-xs); box-shadow: 0 6px 18px rgba(31, 45, 72, 0.14); white-space: nowrap; z-index: 3; }
+  .tip b { display: block; font-size: var(--t-sm); }
+
+  .heat { position: relative; }
+  .heat :global(rect.c) { stroke: var(--paper); stroke-width: 1.5; }
+  .heat :global(rect.c:hover) { stroke: var(--ink); }
+  .heat :global(text) { fill: var(--ink-2); font: 400 11px var(--mono); }
+  .heat-key { display: flex; align-items: center; gap: 0.5rem; font: 400 var(--t-xs) var(--mono); color: var(--ink-2); }
+  .heat-key i { width: 9rem; height: 0.6rem; border-radius: 2px; background: linear-gradient(90deg, #f4ecd8, var(--ramp-1), var(--ramp-2), var(--ramp-3), var(--ramp-4)); }
+
+  details summary { cursor: pointer; font-size: var(--t-sm); color: var(--ink-2); }
+  .tbl-wrap { overflow-x: auto; margin-top: 0.75rem; }
+  table { border-collapse: collapse; font-size: var(--t-xs); font-variant-numeric: tabular-nums; }
+  th, td { padding: 0.35rem 0.6rem; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  th[scope='row'], thead th:first-child { text-align: left; }
+
+  .yoy { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
+  .yoy li { display: grid; grid-template-columns: 10rem minmax(6rem, 1fr) 4.5rem 9rem; gap: 0.75rem; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid var(--rule); }
+  @media (max-width: 640px) { .yoy li { grid-template-columns: 1fr auto; } .y-bar { grid-column: 1 / -1; grid-row: 2; } .y-n { grid-column: 1 / -1; } }
+  .y-name { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; }
+  .y-name i { width: 0.75rem; height: 0.75rem; border-radius: 2px; flex: none; }
+  .y-bar { position: relative; height: 0.9rem; }
+  .y-bar .axis { position: absolute; left: 50%; top: -0.2rem; bottom: -0.2rem; width: 1px; background: var(--ink-2); }
+  .y-bar b { position: absolute; top: 0; bottom: 0; width: var(--w); border-radius: 2px; }
+  .y-bar b.up { left: 50%; background: var(--hot); }
+  .y-bar b.down { right: 50%; background: var(--water); }
+  .y-val { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .y-n { color: var(--ink-2); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+
+  .ranks { display: grid; gap: 2rem 3rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); align-items: start; }
+  .ranks h3 { font-size: var(--t-lg); }
+  .rank { margin: 0; padding: 0; list-style: none; counter-reset: r; border-top: 1.5px solid var(--ink); }
+  .rank li { counter-increment: r; display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; gap: 0.1rem 0.75rem; padding: 0.65rem 0; border-bottom: 1px solid var(--rule); }
+  .rank li::before { content: counter(r, decimal-leading-zero); grid-row: span 2; font: 500 var(--t-xs) var(--mono); color: var(--hot-ink); padding-top: 0.2rem; }
+  .r-name { font-weight: 600; }
+  .r-val { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .r-sub { grid-column: 2 / -1; color: var(--ink-2); font-size: var(--t-sm); }
+
+  .two { display: grid; gap: 2rem 3rem; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 860px) { .two { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); } }
+  .method { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.5rem; max-width: 64ch; }
+</style>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  // Charts. Plain SVG built from the aggregates in #kc-data, no
+  // chart library. One crime-type filter drives both charts.
+  // ─────────────────────────────────────────────────────────────
+  type Data = { cats: string[]; months: string[]; days: number[]; monthly: number[][]; hourDay: number[][] };
+  const D: Data = JSON.parse(document.getElementById('kc-data')!.textContent!);
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag: string, attrs: Record<string, string | number> = {}, parent?: Element) => {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, String(attrs[k]));
+    parent?.appendChild(n);
+    return n;
+  };
+  const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 1 });
+  const mLabel = (mk: string, long = false) => {
+    const [y, m] = mk.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: long ? 'long' : 'short', year: long ? 'numeric' : '2-digit', timeZone: 'UTC' });
+  };
+  const sum = (rows: number[][], i: number) => rows.reduce((s, r) => s + r[i], 0);
+  let cat = -1; // -1 = all crime
+
+  // ── Trend line ──
+  const trendBox = document.querySelector<HTMLElement>('[data-trend]')!;
+  function drawTrend() {
+    trendBox.replaceChildren();
+    const W = Math.max(320, trendBox.clientWidth), H = W < 560 ? 240 : 300;
+    const m = { t: 14, r: 12, b: 28, l: 40 };
+    const vals = D.months.map((_, i) => (cat < 0 ? sum(D.monthly, i) : D.monthly[cat][i]) / D.days[i]);
+    // Y axis starts at zero so the size of change isn't exaggerated.
+    const step = niceStep(Math.max(...vals) / 4);
+    const yMax = Math.ceil(Math.max(...vals) / step) * step || 1;
+    const x = (i: number) => m.l + (i / (vals.length - 1)) * (W - m.l - m.r);
+    const y = (v: number) => H - m.b - (v / yMax) * (H - m.t - m.b);
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${cat < 0 ? 'All crime' : D.cats[cat]}: incidents per day by month, ${mLabel(D.months[0], true)} to ${mLabel(D.months.at(-1)!, true)}. Full numbers in the table view.` }, trendBox);
+    (svg as SVGElement).style.setProperty('--sc', cat < 0 ? 'var(--ink)' : `var(--cat-${cat})`);
+    for (let v = 0; v <= yMax + 1e-9; v += step) {
+      el('line', { class: 'grid', x1: m.l, x2: W - m.r, y1: y(v), y2: y(v) }, svg);
+      el('text', { class: 'tick', x: m.l - 6, y: y(v) + 4, 'text-anchor': 'end' }, svg).textContent = fmt(v);
+    }
+    D.months.forEach((mk, i) => {
+      // Label every 3rd month (every 6th on phones), plus January's year.
+      if (i % (W < 560 ? 6 : 3) === 0) el('text', { class: 'tick', x: x(i), y: H - 8, 'text-anchor': 'middle' }, svg).textContent = mLabel(mk);
+    });
+    const pts = vals.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+    el('polygon', { class: 'area', points: `${x(0)},${y(0)} ${pts} ${x(vals.length - 1)},${y(0)}` }, svg);
+    el('polyline', { class: 'line', points: pts }, svg);
+    const end = vals.length - 1;
+    el('circle', { class: 'dot', cx: x(end), cy: y(vals[end]), r: 4.5 }, svg);
+
+    // Hover: crosshair + tooltip on the nearest month.
+    const cross = el('line', { class: 'cross', y1: m.t, y2: H - m.b, visibility: 'hidden' }, svg);
+    const dot = el('circle', { class: 'dot', r: 4.5, visibility: 'hidden' }, svg);
+    const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; trendBox.appendChild(tip);
+    const hit = el('rect', { class: 'hit', x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b }, svg);
+    const show = (clientX: number) => {
+      const r = (svg as SVGSVGElement).getBoundingClientRect();
+      const px = ((clientX - r.left) / r.width) * W;
+      const i = Math.max(0, Math.min(end, Math.round(((px - m.l) / (W - m.l - m.r)) * end)));
+      cross.setAttribute('x1', String(x(i))); cross.setAttribute('x2', String(x(i))); cross.setAttribute('visibility', 'visible');
+      dot.setAttribute('cx', String(x(i))); dot.setAttribute('cy', String(y(vals[i]))); dot.setAttribute('visibility', 'visible');
+      const count = cat < 0 ? sum(D.monthly, i) : D.monthly[cat][i];
+      tip.innerHTML = `<b>${fmt(vals[i])} a day</b>${mLabel(D.months[i], true)} · ${count.toLocaleString('en-US')} total`;
+      tip.hidden = false;
+      const left = (x(i) / W) * r.width;
+      tip.style.left = `${Math.min(Math.max(0, left - 70), r.width - 160)}px`;
+      tip.style.top = `${(y(vals[i]) / H) * r.height - 58}px`;
+    };
+    hit.addEventListener('pointermove', (e) => show((e as PointerEvent).clientX));
+    hit.addEventListener('pointerleave', () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); });
+  }
+  function niceStep(raw: number) {
+    const p = 10 ** Math.floor(Math.log10(raw || 1));
+    return [1, 2, 2.5, 5, 10].map((k) => k * p).find((s) => s >= raw) ?? 10 * p;
+  }
+
+  // ── Hour × weekday heat map ──
+  const heatBox = document.querySelector<HTMLElement>('[data-heat]')!;
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const daysLong = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const hr = (h: number) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`);
+  const ramp = ['#f4ecd8', '#f3d98b', '#e39a36', '#c9452a', '#6e1d12']; // light → dark, one warm hue family
+  const mix = (a: string, b: string, t: number) => {
+    const p = (s: string) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+    const [A, B] = [p(a), p(b)];
+    return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`;
+  };
+  const color = (t: number) => {
+    const s = Math.min(0.9999, Math.max(0, t)) * (ramp.length - 1), i = Math.floor(s);
+    return mix(ramp[i], ramp[i + 1], s - i);
+  };
+  function drawHeat() {
+    heatBox.replaceChildren();
+    const vals = Array.from({ length: 168 }, (_, i) => (cat < 0 ? sum(D.hourDay, i) : D.hourDay[cat][i]));
+    // Scale from the quietest to the busiest hour so the pattern stands out.
+    const max = Math.max(...vals) || 1, min = Math.min(...vals);
+    // Phones: hours run down, days across. Wider screens: hours across.
+    const tall = heatBox.clientWidth < 620;
+    const W = Math.max(300, heatBox.clientWidth);
+    const lab = tall ? 34 : 38, top = 20;
+    const cols = tall ? 7 : 24, rows = tall ? 24 : 7;
+    const cw = (W - lab) / cols, ch = tall ? Math.min(22, cw * 0.55) : Math.min(34, cw * 0.95);
+    const H = top + rows * ch + 4;
+    const total = vals.reduce((a, b) => a + b, 0);
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${cat < 0 ? 'All crime' : D.cats[cat]} by hour and day of week, last 12 months.` }, heatBox);
+    const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; heatBox.appendChild(tip);
+    for (let d = 0; d < 7; d++) {
+      for (let h = 0; h < 24; h++) {
+        const v = vals[d * 24 + h];
+        const [cx, cy] = tall ? [d, h] : [h, d];
+        const r = el('rect', { class: 'c', x: lab + cx * cw, y: top + cy * ch, width: cw, height: ch, rx: 2, fill: color((v - min) / (max - min || 1)) }, svg);
+        r.addEventListener('pointerenter', () => {
+          tip.innerHTML = `<b>${v.toLocaleString('en-US')} incidents</b>${daysLong[d]}, ${hr(h).replace('a', ' am').replace('p', ' pm')} hour · ${total ? ((100 * v) / total).toFixed(1) : 0}% of the week`;
+          tip.hidden = false;
+          const b = heatBox.getBoundingClientRect(), rb = (r as SVGRectElement).getBoundingClientRect();
+          tip.style.left = `${Math.min(Math.max(0, rb.left - b.left - 60), b.width - 200)}px`;
+          tip.style.top = `${rb.top - b.top - 54}px`;
+        });
+        r.addEventListener('pointerleave', () => (tip.hidden = true));
+      }
+    }
+    // Labels
+    days.forEach((dn, d) => {
+      if (tall) el('text', { x: lab + d * cw + cw / 2, y: 13, 'text-anchor': 'middle' }, svg).textContent = dn;
+      else el('text', { x: 0, y: top + d * ch + ch / 2 + 4 }, svg).textContent = dn;
+    });
+    for (let h = 0; h < 24; h += tall ? 3 : 3) {
+      if (tall) el('text', { x: 0, y: top + h * ch + ch / 2 + 4 }, svg).textContent = hr(h);
+      else el('text', { x: lab + h * cw + 2, y: 13 }, svg).textContent = hr(h);
+    }
+  }
+
+  // ── Filter chips ──
+  const chips = [...document.querySelectorAll<HTMLButtonElement>('[data-kc] [data-cat]')];
+  chips.forEach((b) => b.addEventListener('click', () => {
+    cat = Number(b.dataset.cat);
+    chips.forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+    drawTrend(); drawHeat();
+  }));
+
+  drawTrend(); drawHeat();
+  let rt = 0;
+  addEventListener('resize', () => { clearTimeout(rt); rt = window.setTimeout(() => { drawTrend(); drawHeat(); }, 150); });
+</script>
