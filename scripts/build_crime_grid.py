@@ -208,11 +208,19 @@ def resolve_fields(cfg: dict, ds: str) -> dict | None:
     Look at one row of a dataset and match our field names to its columns.
     Matching ignores case and underscores ("Report_No" = "reportno").
     """
-    sample = fetch_json(f"https://{cfg['domain']}/resource/{ds}.json?$limit=1")
-    if not sample:
+    # Socrata leaves empty fields out of each row, so one row can miss
+    # columns. Use the dataset's column list, plus the keys of 200 rows.
+    names = set()
+    try:
+        names |= {c["fieldName"] for c in fetch_json(f"https://{cfg['domain']}/api/views/{ds}.json").get("columns", [])}
+    except Exception:
+        pass
+    for row in fetch_json(f"https://{cfg['domain']}/resource/{ds}.json?$limit=200"):
+        names |= set(row)
+    if not names:
         return None
     norm = lambda k: k.lower().replace("_", "")
-    cols = {norm(k): k for k in sample[0]}
+    cols = {norm(k): k for k in names}
     out = {}
     for key, configured in cfg["fields"].items():
         for cand in [configured] + FIELD_ALTERNATIVES.get(key, []):
@@ -222,7 +230,7 @@ def resolve_fields(cfg: dict, ds: str) -> dict | None:
     missing = [k for k in ("date", "point", "offense") if k not in out]
     if missing:
         # One warning line with everything needed to fix the mapping.
-        print(f"::warning::{ds}: could not find {', '.join(missing)}; columns are: {', '.join(sorted(sample[0]))}", file=sys.stderr)
+        print(f"::warning::{ds}: could not find {', '.join(missing)}; columns are: {', '.join(sorted(names))}", file=sys.stderr)
         return None
     return out
 
