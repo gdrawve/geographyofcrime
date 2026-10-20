@@ -1,0 +1,188 @@
+---
+import Base from '../layouts/Base.astro';
+import Video from '../components/Video.astro';
+import ConcentrationMap from '../components/ConcentrationMap.astro';
+import EmailCopy from '../components/EmailCopy.astro';
+import { episodes, epLabel, epTitle } from '../data/episodes';
+import { tutorials, tracks } from '../data/tutorials';
+import { talks, articles, conversations } from '../data/talks';
+import { person } from '../data/site';
+
+const latest = episodes[0];
+const episodeCount = new Set(episodes.map((e) => e.number)).size;
+const trackCounts = tracks.map((t) => ({ ...t, n: tutorials.filter((x) => x.track === t.id).length }));
+const writingCount = talks.length + articles.length + conversations.length;
+---
+<Base>
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="label"><span class="hot">Place matters</span> · Spatial criminology</p>
+        <h1>Crime has an address.</h1>
+        <p class="lede">
+          I'm Grant Drawve. I study where crime happens and why it concentrates there,
+          then share it as a podcast, free mapping tutorials, and talks for analysts,
+          police, retailers, and researchers.
+        </p>
+        <div class="cta">
+          <a class="btn" href="/podcast/">Listen to the podcast</a>
+          <a class="btn ghost" href="/tutorials/">Browse {tutorials.length} tutorials</a>
+        </div>
+      </div>
+      <ConcentrationMap />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <ol class="doors">
+        <li>
+          <a href="/podcast/">
+            <span class="label">Listen</span>
+            <span class="door-n">{episodeCount}</span>
+            <span class="door-t">Podcast episodes</span>
+            <span class="door-d">Researchers and practitioners on how place shapes crime and public safety.</span>
+          </a>
+        </li>
+        <li>
+          <a href="/tutorials/">
+            <span class="label">Learn</span>
+            <span class="door-n">{tutorials.length}</span>
+            <span class="door-t">Free tutorials</span>
+            <span class="door-d">Excel, ArcGIS Pro, and Google tools, built around real crime-analysis tasks.</span>
+          </a>
+        </li>
+        <li>
+          <a href="/talks/">
+            <span class="label">Watch &amp; read</span>
+            <span class="door-n">{writingCount}</span>
+            <span class="door-t">Talks and articles</span>
+            <span class="door-d">Workshops, guest appearances, and writing on crime data and retail risk.</span>
+          </a>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap latest">
+      <div class="section-head">
+        <p class="label">Latest episode · <span class="hot">{epLabel(latest)}</span></p>
+        <h2>{epTitle(latest)}</h2>
+        {latest.summary && <p>{latest.summary}</p>}
+        <a class="arrow-link" href={`/podcast/${latest.slug}/`}>Episode page →</a>
+      </div>
+      <Video id={latest.youtube} title={`The Geography of Crime, ${epLabel(latest)}: ${epTitle(latest)}`} />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Tutorial library</p>
+        <h2>Learn the toolkit, one task at a time.</h2>
+        <p>Short videos from years of teaching crime analysis. Each one solves a single, specific problem.</p>
+      </div>
+      <table class="legend">
+        <caption class="visually-hidden">Tutorial tracks and number of videos</caption>
+        <tbody>
+          {trackCounts.map((t) => (
+            <tr>
+              <th scope="row"><a href={`/tutorials/#${t.id}`}>{t.label}</a></th>
+              <td class="legend-d">{t.blurb}</td>
+              <td class="legend-n">{t.n}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap about-strip">
+      <div class="stack">
+        <p class="label">About</p>
+        <h2>Researcher, practitioner, teacher.</h2>
+      </div>
+      <div class="stack">
+        <p>
+          I'm {person.jobTitle} at CAP Index, where I built and lead the Research &amp; Innovation
+          division behind its newest crime risk products.
+          Before that I was an associate professor of criminology at the University of Arkansas and
+          associate director of the Crime &amp; Security Data Analytics Lab (CASDAL).
+        </p>
+        <p><a class="arrow-link" href="/about/">More about me →</a></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section contact" id="contact">
+    <div class="wrap contact-grid">
+      <div class="stack">
+        <p class="label">Contact</p>
+        <h2>Have a question, a dataset, or a guest idea?</h2>
+        <p>Speaking requests, podcast guest suggestions, and research collaborations are all welcome.</p>
+      </div>
+      <EmailCopy />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero { padding-block: clamp(2.5rem, 5vw, 4.5rem) clamp(3rem, 6vw, 5rem); }
+  .hero-grid {
+    display: grid;
+    gap: clamp(2rem, 4vw, 3.5rem);
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+  }
+  @media (min-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); } }
+  .hero-copy { display: grid; gap: 1.25rem; min-width: 0; }
+  .hero h1 { font-size: clamp(2.6rem, 1.6rem + 4.4vw, 5rem); font-stretch: 118%; }
+  .cta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
+
+  /* Three doors: a ruled index, not a card grid */
+  .doors {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr);
+    border-top: 1.5px solid var(--ink);
+  }
+  @media (min-width: 760px) { .doors { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .doors li { border-bottom: 1px solid var(--rule); }
+  @media (min-width: 760px) {
+    .doors li { border-bottom: 0; }
+    .doors li + li { border-left: 1px solid var(--rule); }
+  }
+  .doors a {
+    display: grid; gap: 0.35rem;
+    padding: 1.4rem 1.25rem 1.6rem;
+    text-decoration: none; height: 100%;
+    transition: background 0.15s;
+  }
+  .doors a:hover { background: var(--paper-2); color: inherit; }
+  .doors a:hover .door-n { color: var(--hot); }
+  .door-n { font-family: var(--display); font-stretch: 125%; font-weight: 850; font-size: 3.2rem; line-height: 1; font-variant-numeric: tabular-nums; transition: color 0.15s; }
+  .door-t { font-weight: 650; }
+  .door-d { color: var(--ink-2); font-size: var(--t-sm); max-width: 34ch; }
+
+  .latest { display: grid; gap: 2rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
+  @media (min-width: 900px) { .latest { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); } }
+
+  .legend { width: 100%; border-collapse: collapse; }
+  .legend tr { border-top: 1px solid var(--rule); }
+  .legend tr:last-child { border-bottom: 1px solid var(--rule); }
+  .legend th, .legend td { padding: 0.85rem 0.5rem 0.85rem 0; text-align: left; vertical-align: baseline; }
+  .legend th { font-weight: 650; white-space: nowrap; padding-right: 1.5rem; }
+  .legend th a { text-decoration: none; }
+  .legend th a:hover { text-decoration: underline; }
+  .legend-d { color: var(--ink-2); font-size: var(--t-sm); }
+  .legend-n { text-align: right !important; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--hot-ink); padding-right: 0 !important; }
+  @media (max-width: 560px) { .legend-d { display: none; } }
+
+  .about-strip, .contact-grid { display: grid; gap: 1.5rem 3rem; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 860px) {
+    .about-strip { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+    .contact-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); align-items: end; }
+  }
+  .contact { background: var(--paper-2); }
+</style>

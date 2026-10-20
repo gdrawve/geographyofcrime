@@ -1,0 +1,148 @@
+---
+// The tutorial library. 80+ videos as a scannable, filterable list.
+// Videos load only when a row is opened, so the page stays fast.
+import Base from '../layouts/Base.astro';
+import { tutorials, tracks } from '../data/tutorials';
+import { site } from '../data/site';
+import 'lite-youtube-embed/src/lite-yt-embed.css';
+
+const groups = tracks.map((t) => ({ ...t, items: tutorials.filter((x) => x.track === t.id) }));
+
+// ItemList of VideoObjects: tells search engines and AI tools this
+// page is a structured library of how-to videos.
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Crime analysis and crime mapping tutorials',
+  numberOfItems: tutorials.length,
+  itemListElement: tutorials.map((t, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    item: {
+      '@type': 'VideoObject',
+      name: t.title,
+      description: `${t.title}: a ${tracks.find((x) => x.id === t.track)!.label} tutorial for crime analysts by Grant Drawve, PhD.`,
+      thumbnailUrl: `https://i.ytimg.com/vi/${t.youtube}/hqdefault.jpg`,
+      contentUrl: `https://www.youtube.com/watch?v=${t.youtube}`,
+      author: { '@id': `${site.url}/#grant-drawve` },
+    },
+  })),
+};
+---
+<Base
+  title="Tutorials"
+  description={`${tutorials.length} free video tutorials on crime analysis and crime mapping in Excel, ArcGIS Pro, and Google tools: fishnet grids, kernel density hot spots, spatial joins, geocoding, pivot tables, and more.`}
+  schema={schema}
+>
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Tutorial library · {tutorials.length} videos</p>
+        <h1>Crime analysis, step by step.</h1>
+        <p class="lede">Each video solves one task. Pick a track, or <a href="/search/">search by task</a>, like "kernel density" or "spatial join".</p>
+      </div>
+
+      <div class="filters" role="group" aria-label="Filter by track">
+        <button type="button" data-filter="all" aria-pressed="true">All <span>{tutorials.length}</span></button>
+        {groups.map((g) => (
+          <button type="button" data-filter={g.id} aria-pressed="false">{g.label} <span>{g.items.length}</span></button>
+        ))}
+      </div>
+
+      <div class="tracks">
+        {groups.map((g) => (
+          <section class="track" id={g.id} data-track={g.id}>
+            <header class="track-head">
+              <h2>{g.label}</h2>
+              <p>{g.blurb}</p>
+            </header>
+            <ol class="tut-list">
+              {g.items.map((t, i) => (
+                <li>
+                  <details data-yt={t.youtube} data-title={t.title}>
+                    <summary>
+                      <span class="tut-n label">{String(i + 1).padStart(2, '0')}</span>
+                      <span class="tut-t">{t.title}</span>
+                      <span class="tut-play" aria-hidden="true">Play</span>
+                    </summary>
+                    <div class="tut-video">
+                      <noscript><a href={`https://www.youtube.com/watch?v=${t.youtube}`}>Watch on YouTube</a></noscript>
+                    </div>
+                  </details>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))}
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2.5rem; }
+  .filters button {
+    font: 500 var(--t-sm)/1 var(--body);
+    padding: 0.55rem 0.85rem; border-radius: 999px;
+    border: 1px solid var(--rule); background: var(--card); color: var(--ink); cursor: pointer;
+  }
+  .filters button span { font-family: var(--mono); font-size: var(--t-xs); color: var(--ink-2); margin-left: 0.2rem; }
+  .filters button[aria-pressed='true'] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .filters button[aria-pressed='true'] span { color: var(--ramp-1); }
+
+  .tracks { display: grid; gap: 3rem; }
+  .track { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); scroll-margin-top: 5rem; }
+  @media (min-width: 860px) { .track { grid-template-columns: 15rem minmax(0, 1fr); gap: 2rem; } }
+  .track-head { display: grid; gap: 0.4rem; align-content: start; }
+  .track-head h2 { font-size: var(--t-lg); }
+  .track-head p { color: var(--ink-2); font-size: var(--t-sm); }
+  @media (min-width: 860px) { .track-head { position: sticky; top: 5rem; } }
+
+  .tut-list { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); min-width: 0; }
+  .tut-list li { border-bottom: 1px solid var(--rule); }
+  summary {
+    display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: 0.75rem; align-items: baseline;
+    padding: 0.8rem 0.25rem; cursor: pointer; list-style: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover { background: var(--paper-2); }
+  .tut-t { font-weight: 500; }
+  .tut-play {
+    font: 500 var(--t-xs)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--hot-ink); border: 1px solid currentColor; border-radius: 2px; padding: 0.3rem 0.45rem;
+  }
+  details[open] .tut-play { color: var(--ink-2); }
+  details[open] summary { background: var(--paper-2); }
+  .tut-video { padding: 0.75rem 0 1.25rem; }
+</style>
+
+<script>
+  import 'lite-youtube-embed/src/lite-yt-embed.js';
+
+  // Insert the video only when a row is opened.
+  document.querySelectorAll<HTMLDetailsElement>('details[data-yt]').forEach((d) =>
+    d.addEventListener('toggle', () => {
+      const slot = d.querySelector('.tut-video')!;
+      if (!d.open || slot.querySelector('lite-youtube')) return;
+      const el = document.createElement('lite-youtube');
+      el.setAttribute('videoid', d.dataset.yt!);
+      el.setAttribute('playlabel', `Play: ${d.dataset.title}`);
+      el.setAttribute('params', 'rel=0');
+      slot.prepend(el);
+    }),
+  );
+
+  // Track filter. Keeps the choice in the URL hash so links share.
+  const buttons = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
+  const tracksEls = document.querySelectorAll<HTMLElement>('[data-track]');
+  function apply(id: string) {
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.filter === id)));
+    tracksEls.forEach((t) => (t.hidden = id !== 'all' && t.dataset.track !== id));
+  }
+  buttons.forEach((b) => b.addEventListener('click', () => {
+    apply(b.dataset.filter!);
+    history.replaceState(null, '', b.dataset.filter === 'all' ? location.pathname : `#${b.dataset.filter}`);
+  }));
+  const start = location.hash.slice(1);
+  if (start && [...tracksEls].some((t) => t.dataset.track === start)) apply(start);
+</script>

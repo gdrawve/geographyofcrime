@@ -1,0 +1,217 @@
+/* ─────────────────────────────────────────────────────────────
+   DESIGN SYSTEM
+   Layout concept: a working analyst's map sheet. Cool survey-paper
+   ground, ink-dark type, a hot-spot ramp (yellow → red) reserved
+   for data and emphasis, and small mono coordinate labels like the
+   marginalia on a printed map.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Color: light theme (default). Drawn from the badge: navy ink,
+     cream survey paper, brass rules. The hot-spot ramp stays for data. */
+  --paper: #f5efe0;        /* cream ground */
+  --paper-2: #ebe2cc;      /* recessed panels */
+  --ink: #1f2d48;          /* navy, body text */
+  --ink-2: #4c566a;        /* secondary text */
+  --rule: #d9cfb6;         /* hairlines */
+  --brass: #9a7a45;        /* badge gold, for rules and marks */
+  --hot: #b4371f;          /* accent: the hottest cell */
+  --hot-ink: #9a2f18;      /* accent text on cream (AA contrast) */
+  --ramp-1: #f3d98b;       /* hot-spot ramp, low → high */
+  --ramp-2: #e39a36;
+  --ramp-3: #c9452a;
+  --ramp-4: #6e1d12;
+  --water: #2f5d7c;
+  --card: #fbf8f0;
+
+  /* Research themes: categorical, muted to sit on the survey paper */
+  --th-risk: #c2410c;
+  --th-neighborhoods: #2f5d7c;
+  --th-guns: #8e2f5c;
+  --th-health: #3d7a55;
+  --th-practice: #9a7400;
+  --th-extremism: #5d6670;
+
+  /* Type */
+  --mark: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --display: 'Archivo', 'Arial Narrow', system-ui, sans-serif;
+  --body: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Scale (1.25 ratio) */
+  --t-xs: 0.75rem;
+  --t-sm: 0.875rem;
+  --t-md: 1.0625rem;
+  --t-lg: 1.375rem;
+  --t-xl: clamp(1.6rem, 1.2rem + 1.6vw, 2.25rem);
+  --t-2xl: clamp(2.2rem, 1.4rem + 3.6vw, 4rem);
+
+  --measure: 66ch;
+  --wrap: 72rem;
+  --radius: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #111a2b;
+    --paper-2: #18233a;
+    --ink: #f1e9d6;
+    --ink-2: #b4ad9b;
+    --rule: #2b3954;
+    --brass: #c9a56b;
+    --hot: #f08a4b;
+    --hot-ink: #f4a46e;
+    --ramp-1: #6b3a14;
+    --ramp-2: #c2410c;
+    --ramp-3: #f08a4b;
+    --ramp-4: #f8dc8c;
+    --water: #7fb2d4;
+    --card: #152036;
+    --th-risk: #f08a4b;
+    --th-neighborhoods: #7fb2d4;
+    --th-guns: #e07aa8;
+    --th-health: #7cc49a;
+    --th-practice: #e0b84a;
+    --th-extremism: #a3adb5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --paper: #111a2b;
+  --paper-2: #18233a;
+  --ink: #f1e9d6;
+  --ink-2: #b4ad9b;
+  --rule: #2b3954;
+  --brass: #c9a56b;
+  --hot: #f08a4b;
+  --hot-ink: #f4a46e;
+  --ramp-1: #6b3a14;
+  --ramp-2: #c2410c;
+  --ramp-3: #f08a4b;
+  --ramp-4: #f8dc8c;
+  --water: #7fb2d4;
+  --card: #152036;
+  --th-risk: #f08a4b;
+  --th-neighborhoods: #7fb2d4;
+  --th-guns: #e07aa8;
+  --th-health: #7cc49a;
+  --th-practice: #e0b84a;
+  --th-extremism: #a3adb5;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: var(--t-md);
+  line-height: 1.6;
+  font-feature-settings: 'kern', 'liga';
+}
+
+img { max-width: 100%; height: auto; }
+[hidden] { display: none !important; }
+
+a { color: inherit; text-decoration-color: var(--hot); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+a:hover { color: var(--hot-ink); }
+
+:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px; border-radius: 2px; }
+
+h1, h2, h3 {
+  font-family: var(--display);
+  font-stretch: 112%;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  margin: 0;
+}
+h1 { font-size: var(--t-2xl); font-weight: 800; }
+h2 { font-size: var(--t-xl); font-weight: 750; }
+h3 { font-size: var(--t-lg); font-weight: 700; }
+p { margin: 0; max-width: var(--measure); }
+
+/* Small mono labels: the map marginalia */
+.label {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.label .hot { color: var(--hot-ink); }
+
+.wrap {
+  width: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+@media (min-width: 720px) {
+  .wrap {
+    padding-left: max(32px, env(safe-area-inset-left, 0px));
+    padding-right: max(32px, env(safe-area-inset-right, 0px));
+  }
+}
+
+.section { padding-block: clamp(3rem, 6vw, 5.5rem); }
+.section + .section { border-top: 1px solid var(--rule); }
+
+.section-head {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 2rem;
+}
+.section-head p { color: var(--ink-2); }
+
+.stack { display: grid; gap: 1rem; }
+
+.lede { font-size: var(--t-lg); line-height: 1.45; color: var(--ink-2); max-width: 46ch; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.1rem;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+  font-size: var(--t-sm);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.btn:hover { background: var(--hot); border-color: var(--hot); color: #fff; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.ghost:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+.arrow-link {
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  text-decoration: none;
+  border-bottom: 1.5px solid var(--hot);
+  padding-bottom: 1px;
+}
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* YouTube facade (lite-youtube-embed) placeholder color so the box
+   reads as a video slot before the thumbnail loads. */
+lite-youtube {
+  background-color: var(--paper-2);
+  border-radius: var(--radius);
+  max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}

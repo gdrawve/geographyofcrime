@@ -1,0 +1,27 @@
+{
+  "name": "geographyofcrime",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && pagefind --site dist",
+    "preview": "astro preview",
+    "a11y": "node scripts/a11y-check.mjs"
+  },
+  "dependencies": {
+    "@astrojs/rss": "^4.0.19",
+    "@astrojs/sitemap": "^3.7.4",
+    "astro": "^5.18.2",
+    "d3-geo": "^3.1.1",
+    "lite-youtube-embed": "^0.3.4",
+    "pagefind": "^1.5.2",
+    "topojson-client": "^3.1.0",
+    "us-atlas": "^3.0.1",
+    "world-atlas": "^2.0.2"
+  },
+  "devDependencies": {
+    "axe-core": "^4.10.2",
+    "playwright": "^1.48.2"
+  }
+}

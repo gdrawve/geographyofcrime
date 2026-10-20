@@ -1,0 +1,19 @@
+# Everyone, including AI search and assistant crawlers, is welcome.
+User-agent: *
+Allow: /
+
+# Named explicitly so the intent is unambiguous.
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-SearchBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://geographyofcrime.com/sitemap-index.xml

@@ -1,0 +1,207 @@
+---
+import Base from '../layouts/Base.astro';
+import EmailCopy from '../components/EmailCopy.astro';
+import { person } from '../data/site';
+
+// Career timeline, newest first. Edit here when roles change.
+const career = [
+  {
+    years: '2023 – now',
+    role: 'Vice President of Geospatial Crime Solutions',
+    org: 'CAP Index · Research & Innovation',
+    note: 'Hired to build the Research & Innovation division. Brought four products to market (CAS, CIF, CRF, and CrimeStrata), leads a team of crime and data analysts, and partners with RILA on its Vibrant Communities Initiative.',
+  },
+  {
+    years: '2016 – 2023',
+    role: 'Assistant, then Associate Professor',
+    org: 'University of Arkansas · Sociology & Criminology',
+    note: 'Taught spatial analysis, research methods, and criminological theory. Fulbright College Master Researcher Award, 2019.',
+  },
+  {
+    years: '2020 – 2023',
+    role: 'Associate Director, Crime & Security Data Analytics Lab (CASDAL)',
+    org: 'Terrorism Research Center, University of Arkansas',
+    note: 'Applied crime analytics with police agencies, school districts, and public-health partners.',
+  },
+  {
+    years: '2015 – 2016',
+    role: 'Post-Doctoral Research Associate',
+    org: 'Rutgers University · School of Criminal Justice and Department of Psychology',
+    note: 'Risk terrain modeling and risk-based policing with the Rutgers Center on Public Security.',
+  },
+];
+
+// Selected highlights from the CV.
+const highlights = [
+  { figure: '$2.7M', label: 'External funding as PI or Co-PI', detail: 'NIJ, NSF, BJA, DHS, and OJJDP, plus city and nonprofit partners' },
+  { figure: '2017', label: 'NIJ Real-Time Crime Forecasting Challenge', detail: 'Selected winner, with Caplan, Kennedy, and Piza' },
+  { figure: 'IACP', label: 'Leadership in Law Enforcement Research Award', detail: 'Earned by Kansas City PD for the risk-based policing experiment' },
+  { figure: 'Nat Geo', label: 'Breakthrough, season 2', detail: 'Featured: Atlantic City risk-based policing project' },
+];
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'ProfilePage',
+  mainEntity: { '@id': 'https://geographyofcrime.com/#grant-drawve' },
+};
+---
+<Base
+  title="About"
+  description="Grant Drawve, PhD, is Vice President of Geospatial Crime Solutions at CAP Index, where he built the Research & Innovation division, and a former associate professor of criminology at the University of Arkansas. He studies how place shapes crime and public safety."
+  schema={schema}
+>
+  <section class="section">
+    <div class="wrap about">
+      <header class="stack">
+        <p class="label">About</p>
+        <h1>Grant Drawve, PhD</h1>
+        {/* Headshot goes here when it arrives: public/brand/headshot.webp */}
+        <p class="lede">I study how place shapes crime and public safety, and I try to make that research usable by the people who work on it every day.</p>
+      </header>
+
+      <div class="bio stack">
+        <p>
+          I'm {person.jobTitle} at <a href={person.employer.url} target="_blank" rel="noopener">CAP Index</a>,
+          a crime risk scoring and modeling company. I was hired to build its Research &amp; Innovation
+          division. The division has brought four products to market: Crimes Against Society (CAS), the
+          Crime Incident Feature (CIF), the Crime Rate Feature (CRF), and CrimeStrata.
+        </p>
+        <p>
+          Day to day, I lead a team of crime and data analysts hunting data, standardizing the messiness,
+          and developing pipelines. I am also CAP's research partner to the Retail Industry Leaders
+          Association on its Vibrant Communities Initiative in Atlantic City, NJ and Clackamas County, OR,
+          and I speak regularly to retail, security, and loss-prevention audiences.
+        </p>
+        <p>
+          Before CAP, I spent seven years on the faculty of the University of Arkansas, where I was associate
+          director of the Crime &amp; Security Data Analytics Lab and worked with police departments on why some
+          places carry far more crime than others. The podcast, tutorials, and talks here come from the same
+          goal: translate geographic, data, and technology insights into strategies people can use.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head"><h2>Career</h2></div>
+      <ol class="timeline">
+        {career.map((c) => (
+          <li>
+            <p class="label years">{c.years}</p>
+            <div class="stack tl-body">
+              <h3>{c.role}</h3>
+              <p class="org">{c.org}</p>
+              <p class="note">{c.note}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head"><h2>Highlights</h2></div>
+      <ul class="hl">
+        {highlights.map((h) => (
+          <li>
+            <span class="hl-fig">{h.figure}</span>
+            <span class="hl-label">{h.label}</span>
+            <span class="hl-detail">{h.detail}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap two">
+      <div class="stack">
+        <h2>Education</h2>
+        <dl class="facts">
+          {person.education.map((e) => (
+            <div><dt class="label">{e.degree.split(',')[0]}</dt><dd>{e.degree.split(', ')[1]}<br /><span class="muted">{e.school}</span></dd></div>
+          ))}
+        </dl>
+      </div>
+      <div class="stack">
+        <h2>Research and profiles</h2>
+        <p>Publications, grants, teaching, and service are in my CV. A summary of the research is on the <a href="/research/">Research</a> page.</p>
+        <p><a class="btn" href={person.cv} target="_blank" rel="noopener">Download CV (PDF)</a></p>
+        <ul class="links">
+          {person.profiles.map((p) => (
+            <li><a href={p.url} target="_blank" rel="me noopener"><span>{p.label}</span><span aria-hidden="true">↗</span></a></li>
+          ))}
+          <li><a href="https://www.youtube.com/@crimewithgrant" target="_blank" rel="noopener"><span>Crime with Grant (archive channel)</span><span aria-hidden="true">↗</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Outside of work</h2>
+      </div>
+      <div class="life">
+        <div class="stack">
+          <p class="label">Lego</p>
+          <p>I own more Lego sets than I'd like to admit. They were easier to hide in a campus office than at home. Star Wars makes up most of the collection; the current build is the Atari set.</p>
+        </div>
+        <div class="stack">
+          <p class="label">Family</p>
+          <p>There are five of us. When we're not running between sports and activities, we're usually outside: hiking, biking, landscaping, or making the most of patio season.</p>
+        </div>
+        <div class="stack">
+          <p class="label">Dogs, shortest to tallest</p>
+          <ol class="dogs">
+            <li><strong>Dorothy</strong> <span>super-mutt</span></li>
+            <li><strong>Basil</strong> <span>beagle mix</span></li>
+            <li><strong>Gambit</strong> <span>laika</span></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <EmailCopy />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .about { display: grid; gap: 2.5rem; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 900px) { .about { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; } }
+  .bio p { max-width: 62ch; }
+
+  .timeline { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
+  .timeline li { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.4rem 2rem; padding: 1.25rem 0; border-bottom: 1px solid var(--rule); }
+  @media (min-width: 760px) { .timeline li { grid-template-columns: 9rem minmax(0, 1fr); } }
+  .years { color: var(--hot-ink); padding-top: 0.25rem; }
+  .tl-body { gap: 0.3rem; }
+  .tl-body h3 { font-size: var(--t-lg); }
+  .org { font-weight: 500; }
+  .note { color: var(--ink-2); font-size: var(--t-sm); }
+
+  .hl { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); border-top: 1.5px solid var(--ink); }
+  .hl li { display: grid; gap: 0.3rem; align-content: start; padding: 1.2rem 1.25rem 1.4rem 0; border-bottom: 1px solid var(--rule); }
+  .hl-fig { font-family: var(--display); font-stretch: 125%; font-weight: 850; font-size: 2.4rem; line-height: 1; color: var(--hot-ink); }
+  .hl-label { font-weight: 650; }
+  .hl-detail { color: var(--ink-2); font-size: var(--t-sm); }
+
+  .two { display: grid; gap: 2.5rem 3rem; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 860px) { .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .facts { margin: 0; display: grid; border-top: 1.5px solid var(--ink); align-content: start; }
+  .facts div { display: grid; grid-template-columns: 4rem minmax(0, 1fr); gap: 1rem; padding: 0.85rem 0; border-bottom: 1px solid var(--rule); }
+  .facts dd { margin: 0; }
+  .muted { color: var(--ink-2); font-size: var(--t-sm); }
+  .links { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
+  .links a { display: flex; justify-content: space-between; gap: 1rem; padding: 0.85rem 0.25rem; border-bottom: 1px solid var(--rule); text-decoration: none; font-weight: 500; }
+  .links a:hover { background: var(--paper-2); }
+  .life { display: grid; gap: 2rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+  .dogs { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.3rem; }
+  .dogs span { color: var(--ink-2); font-size: var(--t-sm); }
+</style>

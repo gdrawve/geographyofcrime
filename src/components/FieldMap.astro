@@ -1,0 +1,145 @@
+---
+// "Where the research happened": partner sites on a US map with a
+// Latin America inset. The map is drawn once, when the site builds
+// (no map tiles, no API key). The list beside it carries the same
+// information as text, so the map is never the only way to read it.
+import { geoAlbersUsa, geoMercator, geoPath } from 'd3-geo';
+import { feature, mesh } from 'topojson-client';
+import usTopo from 'us-atlas/states-10m.json';
+import worldTopo from 'world-atlas/countries-110m.json';
+import research from '../data/research.json';
+import { sites, reports } from '../data/fieldwork';
+
+const W = 1000, H = 600;
+
+// ── US (Albers equal-area, the standard US projection) ───────
+const states = feature(usTopo as any, (usTopo as any).objects.states) as any;
+const nation = feature(usTopo as any, (usTopo as any).objects.nation) as any;
+const usProj = geoAlbersUsa().fitExtent([[10, 20], [720, 560]], nation);
+const usPath = geoPath(usProj);
+const stateLines = usPath(mesh(usTopo as any, (usTopo as any).objects.states, (a: any, b: any) => a !== b));
+const nationOutline = usPath(nation);
+
+// ── Latin America inset (Mercator, clipped to the inset box) ─
+const box = { x: 760, y: 150, w: 225, h: 420 };
+const countries = feature(worldTopo as any, (worldTopo as any).objects.countries) as any;
+const laBounds = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[-82, 13], [-34, 13], [-34, -56], [-82, -56], [-82, 13]]] } } as any;
+const laProj = geoMercator().fitExtent([[box.x + 8, box.y + 26], [box.x + box.w - 8, box.y + box.h - 8]], laBounds)
+  .clipExtent([[box.x, box.y], [box.x + box.w, box.y + box.h]]);
+const laPath = geoPath(laProj);
+const laLand = countries.features.map((f: any) => laPath(f)).filter(Boolean);
+
+// ── Sites ────────────────────────────────────────────────────
+const byDoi = Object.fromEntries((research.works as any[]).filter((w) => w.doi).map((w) => [w.doi.toLowerCase(), w]));
+const reportById = Object.fromEntries(reports.map((r) => [r.id, r]));
+const placed = sites.map((s) => {
+  const p = (s.region === 'us' ? usProj : laProj)([s.lon, s.lat]) ?? [0, 0];
+  const papers = s.papers.map((d) => byDoi[d.toLowerCase()]).filter(Boolean);
+  const reps = (s.reports ?? []).map((r) => reportById[r]).filter(Boolean);
+  const n = papers.length + reps.length;
+  return { ...s, x: p[0], y: p[1], r: 7 + Math.sqrt(n) * 4, papers, reps, n };
+});
+---
+<div class="field">
+  <figure class="fmap">
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby="fmap-desc">
+      <desc id="fmap-desc">Map of {sites.length} research sites across the United States and Latin America. The full list of sites follows the map.</desc>
+      <path class="land" d={nationOutline} />
+      <path class="borders" d={stateLines} />
+
+      <rect class="inset" x={box.x} y={box.y} width={box.w} height={box.h} rx="3" />
+      <text class="inset-label" x={box.x + 10} y={box.y + 18}>LATIN AMERICA</text>
+      {laLand.map((d: string) => <path class="land la" d={d} />)}
+
+      {placed.map((s) => (
+        <g class:list={['site', s.outcome && 'award']} data-site={s.id}>
+          <circle cx={s.x} cy={s.y} r={s.r} />
+          {s.outcome && <circle class="ring" cx={s.x} cy={s.y} r={s.r + 5} />}
+        </g>
+      ))}
+
+      <g class="key" transform={`translate(20 ${H - 26})`}>
+        <circle cx="8" cy="0" r="7" class="k-dot" />
+        <text x="22" y="4">Research site, sized by papers and reports</text>
+        <circle cx="330" cy="0" r="7" class="k-dot" />
+        <circle cx="330" cy="0" r="12" class="ring" />
+        <text x="350" y="4">Practice award or feature</text>
+      </g>
+    </svg>
+  </figure>
+
+  <ol class="sites">
+    {placed.map((s) => (
+      <li data-site={s.id} id={`site-${s.id}`}>
+        <details>
+          <summary>
+            <span class="s-place">{s.place}</span>
+            <span class="label">{s.years}</span>
+          </summary>
+          <div class="s-body">
+            <p class="s-partner">{s.partner}</p>
+            <p>{s.summary}</p>
+            {s.outcome && <p class="s-outcome">★ {s.outcome}</p>}
+            {(s.papers.length > 0 || s.reps.length > 0) && (
+              <ul>
+                {s.papers.map((w: any) => <li><a href={w.doi} target="_blank" rel="noopener">{w.title}</a> <span class="label">{w.year}</span></li>)}
+                {s.reps.map((r: any) => <li>{r.title} <span class="label">Report · {r.year}</span></li>)}
+              </ul>
+            )}
+          </div>
+        </details>
+      </li>
+    ))}
+  </ol>
+</div>
+
+<style>
+  .field { display: grid; gap: 1.5rem 2rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
+  @media (min-width: 980px) { .field { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); } }
+  .fmap { margin: 0; min-width: 0; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--card); }
+  .fmap svg { display: block; width: 100%; height: auto; max-width: 100%; }
+  .land { fill: var(--paper-2); stroke: var(--ink-2); stroke-width: 0.6; stroke-opacity: 0.5; }
+  .borders { fill: none; stroke: var(--rule); stroke-width: 0.8; }
+  .inset { fill: var(--card); stroke: var(--rule); }
+  .inset-label { font: 500 11px var(--mono); letter-spacing: 0.08em; fill: var(--ink-2); }
+  .site circle { fill: var(--hot); fill-opacity: 0.85; stroke: var(--card); stroke-width: 1.5; cursor: pointer; transition: fill-opacity 0.15s; }
+  .site .ring, .key .ring { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 3 2; }
+  .site.on circle:not(.ring) { fill: var(--ink); fill-opacity: 1; }
+  .key text { font: 400 13px var(--body); fill: var(--ink-2); }
+  .k-dot { fill: var(--hot); }
+
+  .sites { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); min-width: 0; }
+  .sites > li { border-bottom: 1px solid var(--rule); }
+  .sites > li.on summary { background: var(--paper-2); }
+  .sites summary { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 0.7rem 0.25rem; cursor: pointer; list-style: none; }
+  .sites summary::-webkit-details-marker { display: none; }
+  .sites summary:hover { background: var(--paper-2); }
+  .s-place { font-weight: 650; }
+  .s-body { display: grid; gap: 0.45rem; padding: 0 0.25rem 1rem; font-size: var(--t-sm); }
+  .s-partner { font-weight: 500; }
+  .s-outcome { color: var(--hot-ink); font-weight: 600; }
+  .s-body ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.35rem; }
+</style>
+
+<script>
+  // Map and list point at each other: a dot opens its list entry,
+  // and hovering or opening an entry highlights its dot.
+  const dots = document.querySelectorAll<SVGGElement>('.fmap .site');
+  const items = document.querySelectorAll<HTMLLIElement>('.sites > li');
+  const mark = (id: string | null) => {
+    dots.forEach((d) => d.classList.toggle('on', d.dataset.site === id));
+    items.forEach((i) => i.classList.toggle('on', i.dataset.site === id));
+  };
+  dots.forEach((d) => d.addEventListener('click', () => {
+    const li = document.getElementById(`site-${d.dataset.site}`)!;
+    const det = li.querySelector('details')!;
+    det.open = true;
+    mark(d.dataset.site!);
+    li.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }));
+  items.forEach((li) => {
+    li.addEventListener('pointerenter', () => mark(li.dataset.site!));
+    li.querySelector('details')!.addEventListener('toggle', (e) => { if ((e.target as HTMLDetailsElement).open) mark(li.dataset.site!); });
+  });
+  document.querySelector('.sites')!.addEventListener('pointerleave', () => mark(null));
+</script>

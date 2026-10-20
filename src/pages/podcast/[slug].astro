@@ -1,0 +1,133 @@
+---
+// One page per episode. Astro builds these automatically from
+// src/data/episodes.ts. Each page carries PodcastEpisode and
+// VideoObject tags, and the transcript when you add it, so AI
+// tools can read and cite what was said.
+import Base from '../../layouts/Base.astro';
+import Video from '../../components/Video.astro';
+import { episodes, epLabel, epTitle, type Episode } from '../../data/episodes';
+import { site } from '../../data/site';
+
+export function getStaticPaths() {
+  return episodes.map((e, i) => ({
+    params: { slug: e.slug },
+    props: { e, newer: episodes[i - 1], older: episodes[i + 1] },
+  }));
+}
+
+interface Props { e: Episode; newer?: Episode; older?: Episode; }
+const { e, newer, older } = Astro.props;
+const title = `${epLabel(e)}: ${epTitle(e)}`;
+const description = e.summary ||
+  `The Geography of Crime podcast, ${epLabel(e)}, with ${e.guests.join(' and ')}. Hosted by Grant Drawve, PhD.`;
+// Blank lines in the transcript become paragraph breaks.
+const paragraphs = e.transcript.split(/\n\s*\n/).filter(Boolean);
+const pageUrl = `${site.url}/podcast/${e.slug}/`;
+
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'PodcastEpisode',
+    name: title,
+    episodeNumber: e.number,
+    url: pageUrl,
+    description,
+    partOfSeries: { '@id': `${site.url}/podcast/#series` },
+    author: { '@id': `${site.url}/#grant-drawve` },
+    actor: e.guests.map((g) => ({ '@type': 'Person', name: g })),
+    ...(e.transcript ? { transcript: e.transcript } : {}),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: `The Geography of Crime, ${title}`,
+    description,
+    thumbnailUrl: `https://i.ytimg.com/vi/${e.youtube}/hqdefault.jpg`,
+    contentUrl: `https://www.youtube.com/watch?v=${e.youtube}`,
+    embedUrl: `https://www.youtube.com/embed/${e.youtube}`,
+  },
+];
+---
+<Base title={title} description={description} schema={schema}>
+  <article class="section">
+    <div class="wrap ep">
+      <header class="stack ep-head">
+        <p class="label"><a href="/podcast/">Podcast</a> / <span class="hot">{epLabel(e)}</span></p>
+        <h1>{epTitle(e)}</h1>
+        {e.summary && <p class="lede">{e.summary}</p>}
+      </header>
+
+      <Video id={e.youtube} title={`The Geography of Crime, ${title}`} />
+
+      <div class="ep-body">
+        <aside class="ep-meta">
+          <dl>
+            <dt class="label">Guest{e.guests.length > 1 ? 's' : ''}</dt>
+            {e.guests.map((g) => <dd>{g}</dd>)}
+            <dt class="label">Host</dt>
+            <dd>Grant Drawve, PhD</dd>
+            {e.companion && (<>
+              <dt class="label">Read more</dt>
+              <dd><a href={e.companion.url} target="_blank" rel="noopener">{e.companion.label} ↗</a></dd>
+            </>)}
+          </dl>
+        </aside>
+
+        <div class="stack ep-notes">
+          {e.takeaways.length > 0 && (
+            <section class="stack">
+              <h2>Key takeaways</h2>
+              <ul>{e.takeaways.map((t) => <li>{t}</li>)}</ul>
+            </section>
+          )}
+          {e.transcript ? (
+            <section class="stack">
+              <h2>Transcript</h2>
+              <div class="transcript">{paragraphs.map((p) => <p>{p}</p>)}</div>
+            </section>
+          ) : (
+            <p class="pending">Episode notes and a full transcript are being added.</p>
+          )}
+        </div>
+      </div>
+
+      <nav class="pager" aria-label="More episodes">
+        <div>
+          {older && (
+            <a href={`/podcast/${older.slug}/`}>
+              <span class="label">← Previous</span>
+              <span>{`${epLabel(older)}: ${epTitle(older)}`}</span>
+            </a>
+          )}
+        </div>
+        <div>
+          {newer && (
+            <a href={`/podcast/${newer.slug}/`} class="next">
+              <span class="label">Next →</span>
+              <span>{`${epLabel(newer)}: ${epTitle(newer)}`}</span>
+            </a>
+          )}
+        </div>
+      </nav>
+    </div>
+  </article>
+</Base>
+
+<style>
+  .ep { display: grid; gap: 2rem; max-width: 60rem; }
+  .ep-head h1 { font-size: clamp(2rem, 1.3rem + 3vw, 3.4rem); }
+  .ep-body { display: grid; gap: 2rem; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 760px) { .ep-body { grid-template-columns: 14rem minmax(0, 1fr); } }
+  .ep-meta dl { margin: 0; display: grid; gap: 0.2rem; }
+  .ep-meta dt { margin-top: 0.9rem; }
+  .ep-meta dt:first-child { margin-top: 0; }
+  .ep-meta dd { margin: 0; }
+  .ep-notes h2 { font-size: var(--t-lg); }
+  .ep-notes ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.4rem; }
+  .transcript { display: grid; gap: 1rem; }
+  .pending { color: var(--ink-2); font-style: italic; border-left: 3px solid var(--rule); padding-left: 1rem; }
+  .pager { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; border-top: 1px solid var(--rule); padding-top: 1.25rem; }
+  .pager a { display: grid; gap: 0.25rem; text-decoration: none; font-weight: 600; font-size: var(--t-sm); min-width: 0; }
+  .pager a:hover span:last-child { color: var(--hot-ink); }
+  .pager .next { text-align: right; }
+</style>

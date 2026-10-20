@@ -1,0 +1,82 @@
+---
+import Base from '../../layouts/Base.astro';
+import Video from '../../components/Video.astro';
+import { episodes, intro, epLabel, epTitle } from '../../data/episodes';
+import { site } from '../../data/site';
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'PodcastSeries',
+  '@id': `${site.url}/podcast/#series`,
+  name: 'The Geography of Crime',
+  url: `${site.url}/podcast/`,
+  description:
+    'Conversations with researchers and practitioners from criminology, geography, public health, and policing about how place shapes crime and public safety.',
+  author: { '@id': `${site.url}/#grant-drawve` },
+  webFeed: `${site.url}/podcast/rss.xml`,
+  inLanguage: 'en-US',
+};
+---
+<Base
+  title="Podcast"
+  description="The Geography of Crime podcast: researchers and practitioners on how place shapes crime and public safety, hosted by Grant Drawve, PhD."
+  schema={schema}
+>
+  <section class="section">
+    <div class="wrap pod-head">
+      <div class="stack">
+        <img class="pod-badge" src="/brand/badge-320.webp" alt="The Geography of Crime badge" width="160" height="160" />
+        <p class="label">The Geography of Crime · Podcast</p>
+        <h1>Conversations about place.</h1>
+        <p class="lede">
+          Guests from criminology, geography, public health, and policing on how location
+          shapes crime, risk, and public safety, and what practitioners can do with that.
+        </p>
+        <p><a class="arrow-link" href="/podcast/rss.xml">RSS feed</a></p>
+      </div>
+      <div class="stack">
+        <Video id={intro.youtube} title="The Geography of Crime: introduction to the podcast" />
+        <p class="label">Start here · Introduction to the podcast</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2 class="visually-hidden">All episodes</h2>
+      <ol class="ep-list" reversed>
+        {episodes.map((e) => (
+          <li>
+            <a href={`/podcast/${e.slug}/`}>
+              <span class="ep-num label">{epLabel(e)}</span>
+              <span class="ep-title">{epTitle(e)}</span>
+              <span class="ep-go" aria-hidden="true">→</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .pod-head { display: grid; gap: 2.5rem; grid-template-columns: minmax(0, 1fr); align-items: center; }
+  @media (min-width: 900px) { .pod-head { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+  .pod-badge { width: 160px; height: 160px; }
+  .ep-list { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
+  .ep-list li { border-bottom: 1px solid var(--rule); }
+  .ep-list a {
+    display: grid; grid-template-columns: 9.5rem minmax(0, 1fr) auto; align-items: baseline; gap: 1rem;
+    padding: 1.1rem 0.25rem; text-decoration: none;
+  }
+  .ep-list a:hover { background: var(--paper-2); }
+  .ep-list a:hover .ep-go { color: var(--hot); transform: translateX(3px); }
+  .ep-num { color: var(--hot-ink); }
+  .ep-title { font-family: var(--display); font-stretch: 108%; font-weight: 700; font-size: var(--t-lg); line-height: 1.2; }
+  .ep-go { font-family: var(--mono); transition: transform 0.15s, color 0.15s; }
+  @media (max-width: 600px) {
+    .ep-list a { grid-template-columns: minmax(0, 1fr) auto; gap: 0.25rem 1rem; }
+    .ep-num { grid-column: 1 / -1; }
+  }
+</style>

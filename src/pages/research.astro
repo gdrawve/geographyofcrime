@@ -1,0 +1,510 @@
+---
+// Research page. Everything here is generated from
+// src/data/research.json (built by scripts/build_research.py from
+// OpenAlex) plus the theme summaries in research-themes.ts.
+import Base from '../layouts/Base.astro';
+import research from '../data/research.json';
+import { themes, scholar } from '../data/research-themes';
+import { episodes } from '../data/episodes';
+import { conversations } from '../data/talks';
+import { person, site } from '../data/site';
+import FieldMap from '../components/FieldMap.astro';
+import { fundingTotals, grants, outcomes, reports, sites } from '../data/fieldwork';
+
+type Work = { title: string; year: number; cited: number; type: string; doi: string | null; theme: string; authors: string[] };
+type Node = { name: string; papers: number; theme: string; betweenness: number; x: number; y: number };
+const { meta, network } = research;
+const works = research.works as Work[];
+const nodes = network.nodes as Node[];
+const edges = network.edges as [number, number, number][];
+
+// ── Themes with their papers, most-cited first ───────────────
+const themed = themes.map((t) => {
+  const list = works.filter((w) => w.theme === t.id);
+  return {
+    ...t,
+    list,
+    cites: list.reduce((a, w) => a + w.cited, 0),
+    top: [...list].sort((a, b) => b.cited - a.cited).slice(0, 3),
+  };
+});
+const themeName = Object.fromEntries(themes.map((t) => [t.id, t.name]));
+
+// ── Link co-authors to podcast episodes and conversations ────
+// Matched on last name + first initial, ignoring accents and titles.
+const key = (name: string) => {
+  const parts = name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/^(Dr|Drs)\.?\s+/i, '').toLowerCase().split(/\s+/);
+  return `${parts[0][0]}|${parts[parts.length - 1]}`;
+};
+const media: Record<string, { label: string; href: string }> = {};
+for (const e of [...episodes].reverse())
+  for (const g of e.guests) media[key(g)] ??= { label: `Podcast, Ep. ${e.number}`, href: `/podcast/${e.slug}/` };
+for (const c of conversations) media[key(c.guest)] ??= { label: 'Conversation', href: '/talks/' };
+const linkFor = (name: string) => media[key(name)];
+
+const connectors = (network.connectors as number[]).map((i) => nodes[i]);
+const maxB = Math.max(...connectors.map((n) => n.betweenness));
+const labelled = new Set(nodes.map((n, i) => (n.papers >= 4 || network.connectors.includes(i) || linkFor(n.name) ? i : -1)).filter((i) => i >= 0));
+const radius = (p: number) => 4 + 2.6 * Math.sqrt(p);
+const short = (name: string) => { const p = name.split(' '); return `${p[0][0]}. ${p[p.length - 1]}`; };
+
+const byYear = Object.entries(
+  works.reduce<Record<number, Work[]>>((acc, w) => ((acc[w.year] ??= []).push(w), acc), {}),
+).sort((a, b) => +b[0] - +a[0]);
+
+const isSelf = (a: string) => /drawve/i.test(a);
+const typeLabel: Record<string, string> = { book: 'Book', 'book-chapter': 'Chapter', 'reference-entry': 'Reference entry', preprint: 'Preprint', other: '' };
+
+const profiles = [
+  ...person.profiles.filter((p) => /Scholar|ResearchGate|ORCID/.test(p.label)),
+  { label: 'OpenAlex', url: meta.sourceUrl },
+];
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Publications by Grant Drawve, PhD',
+  numberOfItems: works.length,
+  itemListElement: works.map((w, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    item: {
+      '@type': w.type === 'book' ? 'Book' : 'ScholarlyArticle',
+      name: w.title,
+      datePublished: String(w.year),
+      ...(w.doi ? { url: w.doi, sameAs: w.doi } : {}),
+      author: w.authors.map((a) => (isSelf(a) ? { '@id': `${site.url}/#grant-drawve` } : { '@type': 'Person', name: a })),
+      about: themeName[w.theme],
+    },
+  })),
+};
+// Funding grouped by sector, largest first.
+const usd = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : `$${Math.round(n / 1000)}K`;
+const sectors = ['Federal', 'Police & city', 'Foundation & nonprofit'].map((name) => {
+  const list = grants.filter((g) => g.sector === name).sort((a, b) => b.year - a.year);
+  const funders = [...new Set(list.map((g) => g.funder.replace(/, with .*$/, '').replace(/ \(.*\)$/, '')))];
+  return { name, list, funders };
+});
+const fmtDate = new Date(meta.updated + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+---
+<Base
+  title="Research"
+  description={`Research by Grant Drawve, PhD, on risky places, neighborhoods, gun violence, crime and health, and crime analysis practice: ${meta.works} publications with ${meta.coauthors} co-authors since ${meta.firstYear}.`}
+  schema={schema}
+>
+  <section class="section">
+    <div class="wrap r-head">
+      <div class="stack">
+        <p class="label">Research · {meta.firstYear}–{new Date().getFullYear()}</p>
+        <h1>Why some places carry more crime.</h1>
+        <p class="lede">Fifteen years of research on where crime concentrates, what makes places risky, and how that knowledge gets used by police, planners, and public-health agencies.</p>
+      </div>
+      <dl class="figures">
+        <div><dt class="label">Publications</dt><dd>{meta.works}</dd></div>
+        <div><dt class="label">Citations</dt><dd>{scholar.citations.toLocaleString()}</dd><dd class="fig-src">Google Scholar, {scholar.asOf}</dd></div>
+        <div><dt class="label">Co-authors</dt><dd>{meta.coauthors}</dd></div>
+        <div><dt class="label">Themes</dt><dd>{themes.length}</dd></div>
+      </dl>
+      <ul class="profiles">
+        {profiles.map((p) => <li><a href={p.url} target="_blank" rel="me noopener">{p.label} ↗</a></li>)}
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Collaboration network</p>
+        <h2>Who the work is built with.</h2>
+        <p>Each dot is a co-author, sized by papers written together and colored by the theme you most often share. Lines join co-authors who also published with each other. Tap a dot for details.</p>
+      </div>
+
+      <div class="net-grid">
+        <figure class="net" data-net>
+          <svg viewBox="0 0 1000 1000" role="img" aria-labelledby="net-desc">
+            <desc id="net-desc">Co-author network of Grant Drawve: {meta.coauthors} co-authors in {network.groups} groups. Largest collaborators: {nodes.slice(0, 5).map((n) => `${n.name} (${n.papers} papers)`).join(', ')}. Main connectors are listed beside the chart.</desc>
+            <g class="spokes">
+              {nodes.map((n) => <line x1={network.self.x} y1={network.self.y} x2={n.x} y2={n.y} />)}
+            </g>
+            <g class="ties">
+              {edges.map(([a, b, w]) => (
+                <line x1={nodes[a].x} y1={nodes[a].y} x2={nodes[b].x} y2={nodes[b].y} stroke-width={Math.min(1 + w * 0.8, 5)} data-a={a} data-b={b} />
+              ))}
+            </g>
+            <g class="self">
+              <circle cx={network.self.x} cy={network.self.y} r="22" />
+              <text x={network.self.x} y={network.self.y} dy="0.35em">GD</text>
+            </g>
+            <g class="nodes">
+              {nodes.map((n, i) => (
+                <g class:list={['node', network.connectors.includes(i) && 'connector']} data-i={i} style={`--c: var(--th-${n.theme})`}>
+                  <circle cx={n.x} cy={n.y} r={radius(n.papers)} />
+                  {labelled.has(i) && (
+                    <text x={n.x} y={n.y + radius(n.papers) + 19}>{short(n.name)}</text>
+                  )}
+                </g>
+              ))}
+            </g>
+          </svg>
+          <figcaption class="legend">
+            {themes.map((t) => (
+              <button type="button" data-theme={t.id} style={`--c: var(--th-${t.id})`} aria-pressed="false">
+                <span class="swatch" aria-hidden="true"></span>{t.name}
+              </button>
+            ))}
+          </figcaption>
+        </figure>
+
+        <aside class="net-side">
+          <div class="info" data-info aria-live="polite">
+            <p class="label">Selected</p>
+            <p class="info-name">Tap a co-author</p>
+            <p class="info-meta">Details appear here.</p>
+          </div>
+
+          <div class="stack">
+            <h3>Connectors</h3>
+            <p class="small">Co-authors who bridge otherwise separate groups of collaborators. Measured by betweenness centrality: how often a person sits on the shortest path between two other co-authors, with me left out of the network.</p>
+            <ol class="conn">
+              {connectors.map((n) => (
+                <li>
+                  <div class="conn-row">
+                    <span class="conn-name">{n.name}</span>
+                    <span class="label">{n.papers} papers</span>
+                  </div>
+                  <span class="bar" style={`--w: ${(n.betweenness / maxB) * 100}%; --c: var(--th-${n.theme})`} aria-hidden="true"></span>
+                  <span class="label">{themeName[n.theme]}{linkFor(n.name) && <> · <a href={linkFor(n.name)!.href}>{linkFor(n.name)!.label}</a></>}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </aside>
+      </div>
+
+      <details class="more coauthors">
+        <summary>All {meta.coauthors} co-authors as a list</summary>
+        <table>
+          <thead><tr><th scope="col">Co-author</th><th scope="col">Papers</th><th scope="col">Main shared theme</th></tr></thead>
+          <tbody>
+            {nodes.map((n) => (
+              <tr>
+                <td>{n.name}{linkFor(n.name) && <> · <a href={linkFor(n.name)!.href}>{linkFor(n.name)!.label}</a></>}</td>
+                <td class="num">{n.papers}</td>
+                <td>{themeName[n.theme]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Themes</p>
+        <h2>Six lines of work.</h2>
+      </div>
+      <ol class="themes">
+        {themed.map((t) => (
+          <li class="theme" style={`--c: var(--th-${t.id})`} id={`theme-${t.id}`}>
+            <div class="theme-head">
+              <span class="swatch" aria-hidden="true"></span>
+              <h3>{t.name}</h3>
+              <p class="label">{t.list.length} papers · {t.cites.toLocaleString()} citations</p>
+            </div>
+            <p class="theme-sum">{t.summary}</p>
+            <ul class="top">
+              {t.top.map((w) => (
+                <li>
+                  {w.doi ? <a href={w.doi} target="_blank" rel="noopener">{w.title}</a> : <span>{w.title}</span>}
+                  <span class="label">{w.year} · {w.cited} cited</span>
+                </li>
+              ))}
+            </ul>
+            {t.list.length > 3 && (
+              <details class="more">
+                <summary>All {t.list.length} papers</summary>
+                <ul class="top">
+                  {t.list.slice().sort((a, b) => b.year - a.year).map((w) => (
+                    <li>
+                      {w.doi ? <a href={w.doi} target="_blank" rel="noopener">{w.title}</a> : <span>{w.title}</span>}
+                      <span class="label">{w.year}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Research in the field · {sites.length} sites</p>
+        <h2>Where the research happened.</h2>
+        <p>Most of this work was done with a police department, city, school district, or public-health partner. Select a site on the map or in the list to see the papers and reports from it.</p>
+      </div>
+      <FieldMap />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">In practice</p>
+        <h2>What the work led to.</h2>
+      </div>
+      <ul class="outcomes">
+        {outcomes.map((o) => (
+          <li>
+            <h3>{o.title}</h3>
+            <p>{o.detail}</p>
+            {o.site && <a class="arrow-link" href={`#site-${o.site}`}>See the site →</a>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Funded research · {grants.length} external awards</p>
+        <h2>Who funded it.</h2>
+      </div>
+      <dl class="figures money">
+        {fundingTotals.map((f) => <div><dt class="label">{f.label}</dt><dd>{usd(f.amount)}</dd></div>)}
+      </dl>
+      <div class="sectors">
+        {sectors.map((sec) => (
+          <section class="sector">
+            <h3>{sec.name}</h3>
+            <p class="label">{sec.list.length} awards</p>
+            <p class="small">{sec.funders.join(', ')}</p>
+            <details class="more">
+            <summary>Show {sec.list.length} awards</summary>
+            <ul>
+              {sec.list.map((g) => (
+                <li>
+                  <span class="g-year label">{g.year}</span>
+                  <span class="g-title">{g.title}<span class="g-funder">{g.funder}</span></span>
+                  <span class="g-amt">{usd(g.amount)}{g.note && <span class="g-note">{g.note}</span>}</span>
+                </li>
+              ))}
+            </ul>
+            </details>
+          </section>
+        ))}
+      </div>
+      <p class="label src">Totals as stated on the CV. Amounts show the award, or the subaward to my team where the CV lists one.</p>
+    </div>
+  </section>
+
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Publications</p>
+        <h2>Everything, newest first.</h2>
+        <p>Full details, funding, and teaching are in my <a href={person.cv} target="_blank" rel="noopener">CV</a>.</p>
+      </div>
+      <div class="pubs">
+        {byYear.map(([year, list]) => (
+          <section class="pub-year">
+            <h3 class="label">{year}</h3>
+            <ul>
+              {list.map((w) => (
+                <li style={`--c: var(--th-${w.theme})`}>
+                  <p class="pub-title">
+                    {w.doi ? <a href={w.doi} target="_blank" rel="noopener">{w.title}</a> : w.title}
+                    {typeLabel[w.type] && <span class="tag">{typeLabel[w.type]}</span>}
+                  </p>
+                  <p class="pub-auth">
+                    {w.authors.map((a, i) => <>{i > 0 && ', '}{isSelf(a) ? <strong>{a}</strong> : a}</>)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+      <div class="section-head reports-head">
+        <h3>Reports for agencies and funders</h3>
+        <p>Technical reports written for the organizations that commissioned the work.</p>
+      </div>
+      <ul class="reports">
+        {reports.map((r) => (
+          <li>
+            <span class="label">{r.year}</span>
+            <div>
+              <p class="pub-title">{r.title}<span class="tag">Report</span></p>
+              <p class="pub-auth">{r.authors} · for {r.for}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p class="label src">Source: <a href={meta.sourceUrl} target="_blank" rel="noopener">OpenAlex</a>{meta.snapshot ? ' snapshot' : ''}, updated {fmtDate}. Book chapters are listed under their book.</p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .outcomes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); border-top: 1.5px solid var(--ink); }
+  .outcomes li { display: grid; gap: 0.4rem; align-content: start; padding: 1.2rem 1.25rem 1.4rem 0; border-bottom: 1px solid var(--rule); }
+  .outcomes h3 { font-size: var(--t-md); font-stretch: 105%; line-height: 1.25; }
+  .outcomes p { color: var(--ink-2); font-size: var(--t-sm); }
+  .figures.money { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 2.5rem; }
+  .money dd { color: var(--hot-ink); }
+  @media (max-width: 560px) { .money { grid-template-columns: minmax(0, 1fr); } .money div + div { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); } }
+  .sectors { display: grid; gap: 1.5rem 2.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); align-items: start; }
+  .sector .more[open] { grid-column: 1 / -1; }
+  .sector { display: grid; gap: 0.5rem; }
+  .sector h3 { font-size: var(--t-lg); }
+  .sector ul { list-style: none; margin: 0.5rem 0 0; padding: 0; border-top: 1px solid var(--ink-2); }
+  .sector li { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr) auto; gap: 1rem; align-items: baseline; padding: 0.7rem 0; border-bottom: 1px solid var(--rule); font-size: var(--t-sm); }
+  .g-title { font-weight: 500; display: grid; gap: 0.15rem; }
+  .g-funder { color: var(--ink-2); font-weight: 400; }
+  .g-amt { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; display: grid; gap: 0.15rem; }
+  .g-note { font-size: var(--t-xs); color: var(--ink-2); }
+  .reports-head { margin: 2.5rem 0 1rem; }
+  .reports-head h3 { font-size: var(--t-lg); }
+  .reports { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
+  .reports li { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: 1rem; padding: 0.9rem 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+  @media (max-width: 560px) { .reports li { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; } }
+  .r-head { display: grid; gap: 2rem; }
+  .figures { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1.5px solid var(--ink); border-bottom: 1px solid var(--rule); }
+  .figures div { padding: 1rem 0.75rem 1.1rem 0; display: grid; gap: 0.2rem; }
+  .figures div + div { border-left: 1px solid var(--rule); padding-left: 1rem; }
+  .figures .fig-src { font: 400 var(--t-xs)/1.3 var(--body); color: var(--ink-2); }
+  .figures dd { margin: 0; font-family: var(--display); font-stretch: 125%; font-weight: 850; font-size: clamp(1.8rem, 1.2rem + 2.5vw, 3rem); line-height: 1; font-variant-numeric: tabular-nums; }
+  @media (max-width: 560px) {
+    .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .figures div:nth-child(3) { border-left: 0; padding-left: 0; }
+    .figures div:nth-child(n + 3) { border-top: 1px solid var(--rule); }
+  }
+  .profiles { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; font-size: var(--t-sm); font-weight: 500; }
+
+  .themes { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1.5px solid var(--ink); }
+  .theme { display: grid; gap: 0.75rem; padding: 1.5rem 0; border-bottom: 1px solid var(--rule); grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 900px) {
+    .theme { grid-template-columns: 16rem minmax(0, 1fr) minmax(0, 1.1fr); column-gap: 2rem; align-items: start; }
+    .theme .more { grid-column: 3; }
+  }
+  .theme-head { display: grid; gap: 0.35rem; }
+  .theme-head h3 { font-size: var(--t-lg); }
+  .swatch { display: inline-block; width: 0.8rem; height: 0.8rem; background: var(--c); border-radius: 2px; }
+  .theme-sum { color: var(--ink-2); font-size: var(--t-sm); }
+  .top { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; font-size: var(--t-sm); }
+  .top li { display: grid; gap: 0.1rem; }
+  .top a { text-decoration-color: var(--c); }
+  .more summary { cursor: pointer; font-size: var(--t-sm); font-weight: 600; padding-block: 0.25rem; }
+  .more[open] summary { margin-bottom: 0.6rem; }
+
+  .net-grid { display: grid; gap: 2rem; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 960px) { .net-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } }
+  .net { margin: 0; min-width: 0; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--card); }
+  .net svg { display: block; width: 100%; height: auto; max-width: 100%; }
+  .spokes line { stroke: var(--rule); stroke-width: 0.6; opacity: 0.5; }
+  .ties line { stroke: var(--ink-2); opacity: 0.35; }
+  .self circle { fill: var(--ink); }
+  .self text { fill: var(--paper); font: 700 15px var(--mono); text-anchor: middle; }
+  .node circle { fill: var(--c); stroke: var(--card); stroke-width: 1.5; cursor: pointer; transition: opacity 0.15s; }
+  .node.connector circle { stroke: var(--ink); stroke-width: 2.5; }
+  .node text { fill: var(--ink); font: 500 18px var(--body); text-anchor: middle; paint-order: stroke; stroke: var(--card); stroke-width: 4px; pointer-events: none; }
+  .net.focus .node { opacity: 0.18; }
+  .net.focus .node.on { opacity: 1; }
+  .net.focus .ties line { opacity: 0.08; }
+  .net.focus .ties line.on { opacity: 0.9; stroke: var(--hot); }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0.75rem; border-top: 1px solid var(--rule); }
+  .legend button {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font: 500 var(--t-xs)/1 var(--body); color: var(--ink);
+    padding: 0.4rem 0.6rem; border: 1px solid var(--rule); border-radius: 999px; background: transparent; cursor: pointer;
+  }
+  .legend button[aria-pressed='true'] { border-color: var(--ink); background: var(--paper-2); }
+
+  .net-side { display: grid; gap: 2rem; align-content: start; min-width: 0; }
+  .info { border: 1px solid var(--rule); border-radius: var(--radius); padding: 1rem; display: grid; gap: 0.25rem; background: var(--card); }
+  .info-name { font-family: var(--display); font-stretch: 108%; font-weight: 750; font-size: var(--t-lg); }
+  .info-meta { color: var(--ink-2); font-size: var(--t-sm); }
+  .net-side h3 { font-size: var(--t-lg); }
+  .small { font-size: var(--t-sm); color: var(--ink-2); }
+  .conn { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; counter-reset: c; }
+  .conn li { display: grid; gap: 0.3rem; }
+  .conn-row { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
+  .conn-name { font-weight: 650; }
+  .bar { display: block; height: 6px; background: var(--paper-2); border-radius: 3px; position: relative; overflow: hidden; }
+  .bar::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--c); border-radius: 3px; }
+
+  .coauthors { margin-top: 2rem; }
+  .coauthors table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+  .coauthors th, .coauthors td { text-align: left; padding: 0.5rem 0.75rem 0.5rem 0; border-bottom: 1px solid var(--rule); }
+  .coauthors th { font-family: var(--mono); font-size: var(--t-xs); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .pubs { display: grid; gap: 0; border-top: 1.5px solid var(--ink); }
+  .pub-year { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; padding: 1.25rem 0; border-bottom: 1px solid var(--rule); }
+  @media (min-width: 760px) { .pub-year { grid-template-columns: 6rem minmax(0, 1fr); } }
+  .pub-year h3 { font-size: var(--t-sm); color: var(--ink); }
+  .pub-year ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+  .pub-year li { border-left: 3px solid var(--c); padding-left: 0.85rem; display: grid; gap: 0.2rem; }
+  .pub-title { font-weight: 600; line-height: 1.4; }
+  .pub-title a { text-decoration-color: var(--c); }
+  .tag { font: 500 var(--t-xs)/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 2px; padding: 0.15rem 0.3rem; margin-left: 0.5rem; white-space: nowrap; }
+  .pub-auth { color: var(--ink-2); font-size: var(--t-sm); }
+  .pub-auth strong { color: var(--ink); font-weight: 600; }
+  .src { margin-top: 1.5rem; text-transform: none; letter-spacing: 0.02em; }
+</style>
+
+<script define:vars={{ nodes, edges, themeName, media: Object.fromEntries(nodes.map((n, i) => [i, linkFor(n.name) ?? null])), connectorIds: network.connectors }}>
+  const fig = document.querySelector('[data-net]');
+  const info = document.querySelector('[data-info]');
+  const ties = [...fig.querySelectorAll('.ties line')];
+  const groups = [...fig.querySelectorAll('.node')];
+
+  // Neighbors of each co-author, for highlighting.
+  const nbrs = nodes.map(() => new Set());
+  edges.forEach(([a, b]) => { nbrs[a].add(b); nbrs[b].add(a); });
+
+  function clear() {
+    fig.classList.remove('focus');
+    groups.forEach((g) => g.classList.remove('on'));
+    ties.forEach((l) => l.classList.remove('on'));
+  }
+
+  function select(i) {
+    clear();
+    fig.classList.add('focus');
+    const keep = new Set([i, ...nbrs[i]]);
+    groups.forEach((g) => g.classList.toggle('on', keep.has(+g.dataset.i)));
+    ties.forEach((l) => l.classList.toggle('on', +l.dataset.a === i || +l.dataset.b === i));
+    const n = nodes[i], rank = connectorIds.indexOf(i);
+    const m = media[i];
+    info.innerHTML = `
+      <p class="label">Co-author</p>
+      <p class="info-name"></p>
+      <p class="info-meta">${n.papers} paper${n.papers === 1 ? '' : 's'} together · mostly ${themeName[n.theme]}</p>
+      <p class="info-meta">${nbrs[i].size} other co-author${nbrs[i].size === 1 ? '' : 's'} in common${rank >= 0 ? ` · connector #${rank + 1}` : ''}</p>
+      ${m ? `<p class="info-meta"><a href="${m.href}">${m.label} →</a></p>` : ''}`;
+    info.querySelector('.info-name').textContent = n.name;
+  }
+
+  groups.forEach((g) => g.addEventListener('click', (e) => { e.stopPropagation(); select(+g.dataset.i); }));
+  fig.querySelector('svg').addEventListener('click', clear);
+
+  // Legend: show one theme at a time.
+  fig.querySelectorAll('[data-theme]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const on = b.getAttribute('aria-pressed') !== 'true';
+      fig.querySelectorAll('[data-theme]').forEach((x) => x.setAttribute('aria-pressed', String(x === b && on)));
+      clear();
+      if (!on) return;
+      fig.classList.add('focus');
+      groups.forEach((g) => g.classList.toggle('on', nodes[+g.dataset.i].theme === b.dataset.theme));
+    }),
+  );
+</script>

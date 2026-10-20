@@ -1,0 +1,124 @@
+---
+import Base from '../layouts/Base.astro';
+import Video from '../components/Video.astro';
+import { talks, conversations, articles, invited } from '../data/talks';
+---
+<Base
+  title="Talks & Writing"
+  description="Talks, workshops, guest appearances, interviews, and articles by Grant Drawve, PhD, on crime data, retail crime, and the geography of crime."
+>
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Talks &amp; writing</p>
+        <h1>On stage, on air, in print.</h1>
+        <p class="lede">Workshops, guest appearances, and articles on crime data, retail risk, and place-based analysis.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head"><h2>Talks and workshops</h2></div>
+      <ul class="grid">
+        {talks.map((t) => (
+          <li class="item">
+            {t.youtube ? (
+              <Video id={t.youtube} title={t.title} />
+            ) : (
+              <a class="audio" href={t.url} target="_blank" rel="noopener">
+                <span class="label">Listen on LPRC ↗</span>
+              </a>
+            )}
+            <p class="label"><span class="hot">{t.kind}</span> · {t.venue}</p>
+            <h3>{t.url ? <a href={t.url} target="_blank" rel="noopener">{t.title}</a> : t.title}</h3>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Invited presentations</h2>
+        <p>Recent and selected talks for industry, policing, and research audiences. The full list is in the <a href="/cv/CV_Drawve.pdf" target="_blank" rel="noopener">CV</a>.</p>
+      </div>
+      <ol class="invited">
+        {invited.map((t) => (
+          <li>
+            <span class="label">{t.year}</span>
+            <div class="stack inv-body">
+              <h3>{t.title}</h3>
+              <p>{t.venue} · {t.kind}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Writing</h2>
+        <p>A four-part series with Walter Palmer for Loss Prevention Media.</p>
+      </div>
+      <ol class="articles">
+        {articles.map((a) => (
+          <li>
+            <span class="label">Part {a.part}</span>
+            <div class="stack">
+              <h3><a href={a.url} target="_blank" rel="noopener">{a.title} ↗</a></h3>
+              <p>{a.note}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Earlier conversations</h2>
+        <p>Interviews recorded before the podcast launched.</p>
+      </div>
+      <ul class="grid">
+        {conversations.map((c) => (
+          <li class="item">
+            <Video id={c.youtube} title={`${c.title}, with ${c.guest}`} />
+            <p class="label">With {c.guest}</p>
+            <h3>{c.title}</h3>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 2rem 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }
+  .item { display: grid; gap: 0.5rem; align-content: start; min-width: 0; }
+  .item h3 { font-size: var(--t-md); font-stretch: 100%; font-weight: 650; line-height: 1.3; }
+  .item h3 a { text-decoration: none; }
+  .audio {
+    display: grid; place-items: center; aspect-ratio: 16 / 9; max-width: 100%;
+    background: repeating-linear-gradient(90deg, var(--paper-2) 0 6px, var(--card) 6px 9px);
+    border-radius: var(--radius); text-decoration: none;
+  }
+  .audio .label { background: var(--ink); color: var(--paper); padding: 0.5rem 0.7rem; border-radius: 2px; }
+  .invited { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
+  .invited li { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+  .inv-body { gap: 0.2rem; }
+  .inv-body h3 { font-size: var(--t-md); font-stretch: 100%; font-weight: 650; line-height: 1.35; }
+  .inv-body p { color: var(--ink-2); font-size: var(--t-sm); }
+  @media (max-width: 560px) { .invited li { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; } }
+  .articles { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
+  .articles li { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 1rem; padding: 1.2rem 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+  .articles h3 { font-size: var(--t-lg); font-stretch: 105%; }
+  .articles h3 a { text-decoration: none; }
+  .articles h3 a:hover { text-decoration: underline; }
+  .articles p { color: var(--ink-2); font-size: var(--t-sm); }
+  @media (max-width: 560px) { .articles li { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; } }
+</style>

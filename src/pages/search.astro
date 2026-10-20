@@ -1,0 +1,42 @@
+---
+// Site search, powered by Pagefind. Pagefind builds a small search
+// index after each build (see "build" in package.json), so search
+// runs in the visitor's browser with no server.
+import Base from '../layouts/Base.astro';
+---
+<Base title="Search" description="Search the Geography of Crime podcast, tutorials, and talks.">
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Search</p>
+        <h1>Find a topic, task, or guest.</h1>
+        <p>Try "kernel density", "geocoding", "NIBRS", or a guest's name.</p>
+      </div>
+      <div id="search"></div>
+      <noscript><p>Search needs JavaScript. Browse the <a href="/tutorials/">tutorials</a> or <a href="/podcast/">podcast</a> instead.</p></noscript>
+    </div>
+  </section>
+</Base>
+
+<link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
+<script is:inline src="/pagefind/pagefind-ui.js"></script>
+<script is:inline>
+  window.addEventListener('DOMContentLoaded', () => {
+    if (!window.PagefindUI) return;
+    new PagefindUI({ element: '#search', showSubResults: true, showImages: false, autofocus: true });
+  });
+</script>
+
+<style is:global>
+  /* Match Pagefind's UI to the site tokens */
+  #search {
+    --pagefind-ui-primary: var(--hot-ink);
+    --pagefind-ui-text: var(--ink);
+    --pagefind-ui-background: var(--card);
+    --pagefind-ui-border: var(--rule);
+    --pagefind-ui-tag: var(--paper-2);
+    --pagefind-ui-border-radius: 3px;
+    --pagefind-ui-font: var(--body);
+    max-width: 48rem;
+  }
+</style>
