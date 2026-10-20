@@ -31,7 +31,14 @@ jobs:
       - name: Build grid from city API
         env:
           SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
-        run: python scripts/build_crime_grid.py
+        # On failure, the last lines of the error are posted as
+        # annotations so they show on the run's summary page.
+        run: |
+          python scripts/build_crime_grid.py 2> err.log || {
+            tail -n 25 err.log | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          }
+          tail -n 12 err.log | while IFS= read -r line; do echo "::notice::$line"; done
       - name: Commit if changed, then deploy
         env:
           GH_TOKEN: ${{ github.token }}
