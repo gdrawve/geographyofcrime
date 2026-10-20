@@ -34,8 +34,16 @@ async function worker() {
   while (queue.length) {
     const id = queue.shift();
     try {
-      const r = await fetch(`https://www.youtube.com/watch?v=${id}&hl=en`, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en-US' } });
+      // The consent cookies skip YouTube's cookie-choice page.
+      const r = await fetch(`https://www.youtube.com/watch?v=${id}&hl=en&gl=US`, { headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9', Cookie: 'CONSENT=YES+cb; SOCS=CAI' } });
       const html = await r.text();
+      if (!missed.length && !PATTERNS.some((p) => p.test(html))) {
+        // Report what came back for the first miss, to diagnose blocks.
+        const t = (html.match(/<title>([^<]*)/) || [])[1] || '';
+        console.log(`::notice::First miss ${id}: HTTP ${r.status}, ${html.length} bytes, title "${t.slice(0, 80)}"`);
+      }
       const m = PATTERNS.map((p) => html.match(p)).find(Boolean);
       const iso = m && !Number.isNaN(Date.parse(m[1])) ? m[1] : null;
       if (iso) { dates[id] = iso; found++; } else missed.push(id);
