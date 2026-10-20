@@ -191,6 +191,22 @@ import 'maplibre-gl/dist/maplibre-gl.css';
   import maplibregl from 'maplibre-gl';
   import { latLngToCell, cellToBoundary, cellToLatLng } from 'h3-js';
 
+  // The map and its data (about 1 MB) load only when the map is about
+  // to scroll into view, so the rest of the home page loads fast.
+  const mapSection = document.querySelector<HTMLElement>('.crime-map')!;
+  let started = false;
+  const start = () => { if (!started) { started = true; startMap(); } };
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { io.disconnect(); start(); }
+    }, { rootMargin: '600px 0px' });
+    io.observe(mapSection);
+  } else start();
+  // Arriving via the "Explore the map" link (#map) starts it right away.
+  if (location.hash === '#map') start();
+
+  function startMap() {
+
   type Meta = {
     city: string; extent?: string; source: string; sourceUrl: string; start: string; end: string; updated: string;
     demo: boolean; total: number; cellMeters: number; cols: number; rows: number; bbox: [number, number, number, number];
@@ -637,4 +653,5 @@ import 'maplibre-gl/dist/maplibre-gl.css';
     el.querySelector('.close')!.addEventListener('click', () => (el.hidden = true));
   }
 
+  }
 </script>
