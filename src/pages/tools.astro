@@ -1,0 +1,172 @@
+---
+// Tools page. The Toolkit's current version is read from GitHub when the
+// site builds (weekly, and on every update), so the download button
+// always names the latest release.
+import Base from '../layouts/Base.astro';
+import { toolkit, toolGroups, installSteps, moreTools } from '../data/tools';
+import { tutorials } from '../data/tutorials';
+import { site } from '../data/site';
+
+let version = toolkit.fallbackVersion, released = '';
+try {
+  const r = await fetch(`https://api.github.com/repos/${toolkit.repo}/releases/latest`, { headers: { 'User-Agent': 'geographyofcrime.com' } });
+  if (r.ok) {
+    const d = await r.json();
+    version = String(d.tag_name || version).replace(/^v/i, '').replace(/^release-/i, '');
+    released = d.published_at ? new Date(d.published_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+  }
+} catch { /* offline build: keep the fallback version */ }
+
+const tut = (title?: string) => (title ? tutorials.find((t) => t.title === title) : undefined);
+const toolCount = toolGroups.reduce((n, g) => n + g.tools.length, 0);
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: `${toolkit.publisher} ${toolkit.name}`,
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Windows',
+  softwareVersion: version,
+  description: toolkit.summary,
+  url: `${site.url}/tools/`,
+  downloadUrl: toolkit.releasesUrl,
+  license: 'https://opensource.org/licenses/MIT',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  author: { '@id': `${site.url}/#grant-drawve` },
+  publisher: { '@type': 'Organization', name: toolkit.publisher },
+};
+---
+<Base
+  title="Tools"
+  description={`Free tools for crime analysts by Grant Drawve, PhD, including the ${toolkit.publisher} ${toolkit.name}: ${toolCount} Excel tools for data prep, hot streets, crime concentration, trends, and briefings.`}
+  schema={schema}
+>
+  <section class="section">
+    <div class="wrap tk-hero">
+      <div class="stack">
+        <p class="label">Tools · Free for analysts</p>
+        <h1>The {toolkit.name}</h1>
+        <p class="lede">{toolkit.summary}</p>
+        <div class="cta">
+          <a class="btn" href={toolkit.releasesUrl} target="_blank" rel="noopener">Download version {version}</a>
+          <a class="btn ghost" href={toolkit.repoUrl} target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+        <p class="label meta">{toolkit.platform}{released && ` · Released ${released}`} · Built at {toolkit.publisher}, free under the MIT License</p>
+      </div>
+      <figure class="shot">
+        <img src="/tools/toolkit-setup-window.webp" width="989" height="698" alt="The Period Comparison setup window: field dropdowns for date, crime type, incident ID, and location on the left; crime filter, count measure, and period dates on the right." />
+        <figcaption class="label">Every tool opens the same setup window: pick your columns, set options, run.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">{toolCount} tools, in workflow order</p>
+        <h2>From raw export to briefing.</h2>
+        <p>Tools with a ▶ have a matching free video in the <a href="/tutorials/">tutorial library</a>.</p>
+      </div>
+      <ol class="flow">
+        {toolGroups.map((g, gi) => (
+          <li class="step">
+            <header>
+              <span class="label step-n">Step {gi + 1}</span>
+              <h3>{g.step}</h3>
+              <p>{g.blurb}</p>
+            </header>
+            <ul class="tools">
+              {g.tools.map((t) => {
+                const v = tut(t.tutorial);
+                return (
+                  <li>
+                    <img src={`/tools/icons/${t.icon}.svg`} alt="" width="28" height="28" />
+                    <div>
+                      <p class="t-name">{t.name}</p>
+                      <p class="t-does">{t.does}</p>
+                      {v && <a class="t-vid" href={`https://www.youtube.com/watch?v=${v.youtube}`} target="_blank" rel="noopener">▶ Watch: {v.title}</a>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap two">
+      <div class="stack">
+        <h2>Install in five minutes</h2>
+        <ol class="install">
+          {installSteps.map((s) => <li>{s}</li>)}
+        </ol>
+      </div>
+      <div class="stack">
+        <h2>Guides</h2>
+        <ul class="links">
+          {toolkit.docs.map((d) => <li><a href={d.url} target="_blank" rel="noopener"><span>{d.label}</span><span aria-hidden="true">↗</span></a></li>)}
+        </ul>
+        <p class="note">Results are descriptive. Review data quality, coverage, and counting definitions before drawing conclusions. CAP Index names and logos are excluded from the software license; see the repository's branding terms.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">More tools</p>
+        <h2>Code and notebooks</h2>
+        <p>Scripts and notebooks will be added here as they're released.</p>
+      </div>
+      <ul class="more">
+        {moreTools.map((t) => (
+          <li>
+            <span class="label">{t.kind}</span>
+            <h3><a href={t.url} target="_blank" rel="noopener">{t.name} ↗</a></h3>
+            <p>{t.does}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .tk-hero { display: grid; gap: 2.5rem; grid-template-columns: minmax(0, 1fr); align-items: center; }
+  @media (min-width: 980px) { .tk-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); } }
+  .tk-hero h1 { font-size: clamp(2.1rem, 1.4rem + 2.8vw, 3.6rem); }
+  .cta { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+  .meta { text-transform: none; letter-spacing: 0.02em; }
+  .shot { margin: 0; display: grid; gap: 0.6rem; min-width: 0; }
+  .shot img { width: 100%; height: auto; border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(31, 45, 72, 0.12); background: #fff; }
+
+  .flow { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1.5px solid var(--ink); }
+  .step { display: grid; gap: 1rem 2.5rem; grid-template-columns: minmax(0, 1fr); padding: 1.5rem 0; border-bottom: 1px solid var(--rule); }
+  @media (min-width: 900px) { .step { grid-template-columns: 15rem minmax(0, 1fr); } }
+  .step header { display: grid; gap: 0.3rem; align-content: start; }
+  .step h3 { font-size: var(--t-xl); }
+  .step header p { color: var(--ink-2); font-size: var(--t-sm); }
+  .step-n { color: var(--hot-ink); }
+  .tools { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.1rem 2rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }
+  .tools li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 0.75rem; align-items: start; }
+  .tools img { width: 28px; height: 28px; }
+  .t-name { font-weight: 650; }
+  .t-does { color: var(--ink-2); font-size: var(--t-sm); }
+  .t-vid { display: inline-block; margin-top: 0.3rem; font-size: var(--t-xs); font-family: var(--mono); }
+
+  .two { display: grid; gap: 2rem 3rem; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 860px) { .two { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); } }
+  .install { margin: 0; padding-left: 1.3rem; display: grid; gap: 0.6rem; max-width: 62ch; }
+  .links { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
+  .links a { display: flex; justify-content: space-between; gap: 1rem; padding: 0.8rem 0.25rem; border-bottom: 1px solid var(--rule); text-decoration: none; font-weight: 500; }
+  .links a:hover { background: var(--paper-2); }
+  .note { color: var(--ink-2); font-size: var(--t-sm); }
+  .more { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); }
+  .more li { display: grid; gap: 0.35rem; padding: 1.1rem 1.2rem; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--card); }
+  .more h3 { font-size: var(--t-lg); }
+  .more h3 a { text-decoration: none; }
+  .more p { color: var(--ink-2); font-size: var(--t-sm); }
+</style>

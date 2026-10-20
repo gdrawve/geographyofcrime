@@ -57,6 +57,7 @@ export const person = {
 export const nav = [
   { href: '/podcast/', label: 'Podcast' },
   { href: '/tutorials/', label: 'Tutorials' },
+  { href: '/tools/', label: 'Tools' },
   { href: '/research/', label: 'Research' },
   { href: '/talks/', label: 'Talks & Writing' },
   { href: '/about/', label: 'About' },

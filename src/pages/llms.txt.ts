@@ -25,6 +25,7 @@ export const GET: APIRoute = () => {
     `- [About Grant Drawve](${u('/about/')}): biography, research profiles, and CV`,
     `- [The Geography of Crime podcast](${u('/podcast/')}): conversations on how place shapes crime and public safety`,
     `- [Tutorial library](${u('/tutorials/')}): ${tutorials.length} free crime-analysis and crime-mapping video tutorials`,
+    `- [Tools](${u('/tools/')}): the free CAP Index Crime Analysis Excel Toolkit (16 Excel tools for data prep, hot streets, crime concentration, trends, and briefings) and open Python scripts`,
     `- [Research](${u('/research/')}): ${research.meta.works} publications, research themes, and co-author network`,
     `- [Talks and writing](${u('/talks/')}): workshops, guest appearances, and articles`,
     '',
