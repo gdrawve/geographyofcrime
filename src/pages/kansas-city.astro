@@ -100,7 +100,7 @@ const schema = {
         <li>
           <span class="big">{fmt(totalA)}</span>
           <span class="t-label">crimes against persons, property, and society in the last 12 months</span>
-          <span class="t-sub">About {fmt(perDay)} a day (NIBRS Group A), plus {fmt(totalOther)} Group B and unclassified reports</span>
+          <span class="t-sub">About {fmt(perDay)} a day (NIBRS Group A), plus {fmt(totalOther)} Group B offenses and non-crime reports such as warrant arrests and traffic crashes</span>
         </li>
         <li>
           <span class="big">{sign(yoyAll)}</span>
@@ -109,7 +109,7 @@ const schema = {
         </li>
         <li>
           <span class="big">{conc.pctCellsForHalf}%</span>
-          <span class="t-label">of places hold half of all crime</span>
+          <span class="t-label">of places hold half of all Group A crime</span>
           <span class="t-sub">{fmt(conc.cellsForHalf)} of {fmt(conc.occupiedCells)} {conc.cellMeters} m squares with any crime</span>
         </li>
         <li>
@@ -203,7 +203,7 @@ const schema = {
       <div class="wrap">
         <div class="section-head">
           <h2>Where it concentrates: neighborhoods</h2>
-          <p>Census block groups, the smallest areas with population counts, labeled with the nearest named neighborhood. Half of all incidents fell in {hoods.bgsForHalf} of {hoods.blockGroups} block groups.</p>
+          <p>Census block groups, the smallest areas with population counts, labeled with the nearest named neighborhood. Counts are Group A offenses. Half of them fell in {hoods.bgsForHalf} of {hoods.blockGroups} block groups.</p>
         </div>
         <div class="ranks">
           <div class="stack">

@@ -7,8 +7,9 @@ exactly as the FBI assigns them in the NIBRS User Manual. That's why
 Robbery sits under Property: NIBRS counts it as a crime against property.
 
 Group B offenses (90A–90Z) are arrest-only offenses in NIBRS, so they are
-their own group. Justifiable homicide (09C) is "Not a Crime" in NIBRS
-and goes to Unclassified, along with anything that can't be matched.
+their own group. Unclassified holds reports that are not NIBRS offenses:
+in Kansas City mostly warrant arrests, traffic crashes, investigations,
+and unfounded reports, plus justifiable homicide (09C, "Not a Crime").
 
 How a row is classified, in order:
   1. its NIBRS code (e.g. "13B")

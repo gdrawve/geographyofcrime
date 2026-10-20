@@ -60,6 +60,14 @@ def build(incidents: list[tuple], categories: list[str], recent_from: datetime,
     places: [{"name", "lat", "lon"}] neighborhood labels from OpenStreetMap
     """
     nc = len(categories)
+    # NIBRS Group A = crimes against persons, property, and society. The
+    # concentration figure and neighborhood rankings count Group A only,
+    # so warrant arrests, traffic crashes, and Group B offenses don't
+    # decide which places look "high crime".
+    groups, cat_group = meta.get("groups", []), meta.get("catGroup", [])
+    a_groups = {groups.index(g) for g in ("Persons", "Property", "Society") if g in groups}
+    in_a = [cat_group[c] in a_groups for c in range(nc)] if cat_group else [True] * nc
+    per_cat = len(meta["bands"]) * 2   # slots per category
     last = max(inc[5] for inc in incidents)
 
     # ── 1. Monthly series: 24 complete months ending with the newest full one ──
@@ -99,7 +107,8 @@ def build(incidents: list[tuple], categories: list[str], recent_from: datetime,
     midnight = sum(1 for inc in recent if inc[5].hour == 0 and inc[5].minute == 0)
 
     # ── 4. Concentration across 150 m grid cells ──
-    totals = sorted((sum(row[3::2]) for row in grid_cells), reverse=True)
+    totals = sorted((t for t in (sum(row[j + 1] for j in range(2, len(row), 2) if in_a[row[j] // per_cat])
+                                 for row in grid_cells) if t), reverse=True)
     n_inc = sum(totals)
     run, half_cells = 0, 0
     for i, t in enumerate(totals):
@@ -130,14 +139,13 @@ def build(incidents: list[tuple], categories: list[str], recent_from: datetime,
             by = [0] * nc
             for slot, c in b["counts"].items():
                 by[slot // (len(meta["bands"]) * 2)] += c  # slot → category
-            total = sum(by)
+            total = sum(v for c, v in enumerate(by) if in_a[c])
             if not total:
                 continue
             ctr = b["geom"].representative_point()
             # Most common SPECIFIC type: catch-alls ("Unclassified", NIBRS
             # "All Other Offenses") are skipped when anything else was recorded.
-            vague = {i for i, c in enumerate(categories) if c in ("Unclassified", "All Other Offenses")}
-            named = [c for c in range(nc) if c not in vague and by[c]] or list(range(nc))
+            named = [c for c in range(nc) if in_a[c] and by[c]] or list(range(nc))
             top = max(named, key=lambda c: by[c])
             rows.append({
                 "id": b["id"],
