@@ -15,6 +15,10 @@ const { title, description = site.description, schema } = Astro.props;
 const fullTitle = title ? `${title} · ${site.name}` : `${site.name} · Grant Drawve`;
 const canonical = new URL(Astro.url.pathname, site.url).href;
 const path = Astro.url.pathname;
+// Each page's share card is drawn after the build by scripts/og.mjs and
+// named from the URL: "/" → home.png, "/podcast/ep-09/" → podcast-ep-09.png.
+const ogSlug = path.replace(/^\/|\/$/g, '').replace(/\//g, '-') || 'home';
+const ogImage = `${site.url}/og/${ogSlug}.png`;
 
 // The "who" block, present on every page. sameAs links the
 // profiles together into one identity.
@@ -62,8 +66,11 @@ const ld = [personLd, websiteLd, ...extra];
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta property="og:image" content={`${site.url}/brand/og.png`} />
-    <meta property="og:image:alt" content="Geography of Crime badge: a magnifying glass over a city map" />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${title ?? 'Geography of Crime'}: Geography of Crime, Grant Drawve, PhD`} />
+    <meta name="twitter:image" content={ogImage} />
     <meta name="twitter:card" content="summary_large_image" />
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />

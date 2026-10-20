@@ -28,8 +28,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      # Accessibility gate: serious WCAG problems stop the deploy.
       - run: npx playwright install --with-deps chromium
+      # Share images (Open Graph cards) for every page, drawn into dist/og/.
+      - name: Share images
+        run: node scripts/og.mjs
+      # Accessibility gate: serious WCAG problems stop the deploy.
       - name: Accessibility check
         run: |
           npm run a11y > a11y.log 2>&1 || {

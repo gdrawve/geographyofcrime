@@ -46,6 +46,10 @@ jobs:
           # the last few progress lines become notices.
           grep '^::warning::' err.log || true
           grep -v '^::warning::' err.log | tail -n 12 | while IFS= read -r line; do echo "::notice::$line"; done
+      # Dead YouTube videos and outside links show as warnings on this
+      # run's summary page. Never fails the run.
+      - name: Check for broken links
+        run: python scripts/check_links.py || echo "::warning::Link check could not run"
       - name: Commit if changed, then deploy
         env:
           GH_TOKEN: ${{ github.token }}

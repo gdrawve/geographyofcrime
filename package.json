@@ -23,6 +23,9 @@
     "world-atlas": "^2.0.2"
   },
   "devDependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/public-sans": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
     "axe-core": "^4.10.2",
     "playwright": "^1.48.2"
   }
