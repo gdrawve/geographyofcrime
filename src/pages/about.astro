@@ -53,7 +53,7 @@ const schema = {
   <section class="section">
     <div class="wrap about">
       <header class="about-head">
-        <img class="headshot" src="/brand/headshot-400.webp" alt="Grant Drawve, smiling, in glasses and a plaid jacket" width="200" height="200" />
+        <img class="headshot" src="/brand/headshot-face-400.webp" alt="Grant Drawve, smiling, in glasses and a plaid jacket" width="200" height="200" />
         <div class="stack">
         <p class="label">About</p>
         <h1>Grant Drawve, PhD</h1>
@@ -146,34 +146,41 @@ const schema = {
       <div class="section-head">
         <h2>Outside of work</h2>
       </div>
+      <!-- Three panels that share one card style: Lego and family on
+           top, then the dogs with their photos as the wide panel. -->
       <div class="life">
-        <div class="stack">
+        <article class="panel lego-panel">
           <img class="lego" src="/brand/lego-bigfoot-480.webp" alt="Grant's Lego-style profile picture: a bearded bigfoot minifigure in glasses holding a crime analytics report" width="240" height="240" loading="lazy" />
-          <p class="label">Lego</p>
-          <p>I own more Lego sets than I'd like to admit. They were easier to hide in a campus office than at home. Star Wars makes up most of the collection; the current build is the Atari set.</p>
-        </div>
-        <div class="stack">
+          <div class="stack">
+            <p class="label">Lego</p>
+            <p>I own more Lego sets than I'd like to admit. They were easier to hide in a campus office than at home. Star Wars makes up most of the collection; the current build is the Atari set.</p>
+          </div>
+        </article>
+
+        <article class="panel family-panel">
           <p class="label">Family</p>
-          <p>There are five of us. When we're not running between sports and activities, we're usually outside: hiking, biking, landscaping, or making the most of patio season.</p>
-        </div>
-        <div class="stack">
-          <p class="label">Dogs, shortest to tallest</p>
-          <ol class="dogs">
-            <li><strong>Dorothy</strong> <span>super-mutt</span></li>
-            <li><strong>Basil</strong> <span>beagle mix</span></li>
-            <li><strong>Gambit</strong> <span>laika</span></li>
-          </ol>
-        </div>
-      </div>
-      <div class="pets">
-        <figure>
-          <img src="/brand/dogs-basil-dorothy-960.webp" srcset="/brand/dogs-basil-dorothy-480.webp 480w, /brand/dogs-basil-dorothy-960.webp 960w" sizes="(min-width: 760px) 50vw, 100vw" alt="Basil, a black-and-white beagle mix, and Dorothy, a small scruffy grey mutt, curled up in dog beds in their built-in nook" width="960" height="720" loading="lazy" />
-          <figcaption class="label">Basil (left) and Dorothy, off duty</figcaption>
-        </figure>
-        <figure>
-          <img src="/brand/dog-gambit-960.webp" srcset="/brand/dog-gambit-480.webp 480w, /brand/dog-gambit-960.webp 960w" sizes="(min-width: 760px) 50vw, 100vw" alt="Gambit, a grey-and-white laika, sitting on a gravel bank beside a tree-lined river" width="960" height="720" loading="lazy" />
-          <figcaption class="label">Gambit, scouting the river</figcaption>
-        </figure>
+          <p class="big-line">Five of us.</p>
+          <p>When we're not running between sports and activities, we're usually outside: hiking, biking, landscaping, or making the most of patio season.</p>
+        </article>
+
+        <article class="panel dogs-panel">
+          <div class="stack dogs-text">
+            <p class="label">The dogs, shortest to tallest</p>
+            <ol class="dogs">
+              <li><strong>Dorothy</strong> <span>super-mutt</span></li>
+              <li><strong>Basil</strong> <span>beagle mix</span></li>
+              <li><strong>Gambit</strong> <span>laika</span></li>
+            </ol>
+          </div>
+          <figure>
+            <img src="/brand/dogs-basil-dorothy-960.webp" srcset="/brand/dogs-basil-dorothy-480.webp 480w, /brand/dogs-basil-dorothy-960.webp 960w" sizes="(min-width: 900px) 30vw, 100vw" alt="Basil, a black-and-white beagle mix, and Dorothy, a small scruffy grey mutt, curled up in dog beds in their built-in nook" width="960" height="720" loading="lazy" />
+            <figcaption class="label">Basil and Dorothy, off duty</figcaption>
+          </figure>
+          <figure>
+            <img src="/brand/dog-gambit-960.webp" srcset="/brand/dog-gambit-480.webp 480w, /brand/dog-gambit-960.webp 960w" sizes="(min-width: 900px) 30vw, 100vw" alt="Gambit, a grey-and-white laika, sitting on a gravel bank beside a tree-lined river" width="960" height="720" loading="lazy" />
+            <figcaption class="label">Gambit, scouting the river</figcaption>
+          </figure>
+        </article>
       </div>
     </div>
   </section>
@@ -218,10 +225,20 @@ const schema = {
   .links { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
   .links a { display: flex; justify-content: space-between; gap: 1rem; padding: 0.85rem 0.25rem; border-bottom: 1px solid var(--rule); text-decoration: none; font-weight: 500; }
   .links a:hover { background: var(--paper-2); }
-  .life { display: grid; gap: 2rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
-  .pets { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); margin-top: 2rem; }
-  .pets figure { margin: 0; display: grid; gap: 0.5rem; }
-  .pets img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); }
-  .dogs { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.3rem; }
+  /* Outside of work: one card style for all three panels. */
+  .life { display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 860px) { .life { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); } }
+  .panel { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.25rem; display: grid; gap: 0.6rem; align-content: start; min-width: 0; }
+  .lego-panel { grid-template-columns: 120px minmax(0, 1fr); gap: 1.1rem; align-items: start; }
+  @media (max-width: 420px) { .lego-panel { grid-template-columns: minmax(0, 1fr); } }
+  .lego { width: 120px; height: 120px; border-radius: var(--radius); border: 1px solid var(--rule); background: var(--paper); }
+  .big-line { font-family: var(--display); font-stretch: 125%; font-weight: 850; font-size: 2rem; line-height: 1; color: var(--hot-ink); }
+  .dogs-panel { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); gap: 1.1rem; }
+  @media (min-width: 760px) { .dogs-panel { grid-template-columns: 13rem minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
+  .dogs-panel figure { margin: 0; display: grid; gap: 0.45rem; min-width: 0; }
+  .dogs-panel img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); display: block; }
+  .dogs { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.55rem; }
+  .dogs li { display: grid; gap: 0.05rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+  .dogs li:last-child { border-bottom: 0; }
   .dogs span { color: var(--ink-2); font-size: var(--t-sm); }
 </style>
