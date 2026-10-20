@@ -40,6 +40,14 @@ LABELS = [
 ]
 
 
+# Well-known places OpenStreetMap doesn't tag as a named place node.
+MANUAL_LABELS = [
+    {"name": "Downtown", "lon": -94.5810, "lat": 39.1000, "kind": "place"},
+    {"name": "18th & Vine", "lon": -94.5620, "lat": 39.0911, "kind": "place"},
+    {"name": "Crown Center", "lon": -94.5812, "lat": 39.0828, "kind": "place"},
+]
+
+
 def overpass(query: str) -> dict:
     body = urllib.parse.urlencode({"data": query}).encode()
     last = None
@@ -94,6 +102,10 @@ def main():
             if match and match not in seen:
                 labels.append({"name": match, "lon": round(el["lon"], 5), "lat": round(el["lat"], 5), "kind": "place"})
                 seen.add(match)
+
+    for m in MANUAL_LABELS:
+        if m["name"] not in seen and w <= m["lon"] <= e and s <= m["lat"] <= n:
+            labels.append(m); seen.add(m["name"])
 
     def pack(lines, tol):
         """Merge, simplify (~tol degrees), and round to 5 decimals."""

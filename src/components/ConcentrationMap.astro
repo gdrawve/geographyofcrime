@@ -394,9 +394,10 @@
     ctx.font = `600 ${W < 420 ? 10 : 11}px ${css('--body')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineWidth = 3; ctx.strokeStyle = halo; ctx.fillStyle = ink; ctx.lineJoin = 'round';
     for (const l of base.labels) {
-      const [x, y] = project(l.lon, l.lat);
-      if (x < 30 || x > W - 30 || y < 10 || y > H - 10) continue;
-      const t = l.name.toUpperCase();
+      let [x, y] = project(l.lon, l.lat);
+      if (x < 0 || x > W || y < 10 || y > H - 10) continue;
+      const t = l.name.toUpperCase(), half = ctx.measureText(t).width / 2 + 4;
+      x = Math.min(Math.max(x, half), W - half);   // keep the whole label inside the map
       ctx.strokeText(t, x, y); ctx.fillText(t, x, y);
     }
     ctx.restore();
