@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────────────────────────
 
 export const coauthorLinks: Record<string, string> = {
-  'Joel M. Caplan': 'https://www.newark.rutgers.edu/people/joel-caplan',
+  // 'Joel M. Caplan': 'https://www.newark.rutgers.edu/people/joel-caplan',
   // 'Casey T. Harris': 'https://…',
   // 'Kevin M. Fitzpatrick': 'https://…',
   // 'Shaun A. Thomas': 'https://…',
