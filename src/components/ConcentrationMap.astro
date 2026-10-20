@@ -11,7 +11,7 @@
 // scripts/build_crime_grid.py. Only aggregated counts are published,
 // never exact incident locations.
 ---
-<figure class="cmap" data-src="/data/crime-grid.json" data-src-bg="/data/crime-bg.json" aria-label="Interactive crime concentration map">
+<figure class="cmap" data-src="/data/crime-grid.json" data-src-bg="/data/crime-bg.json" data-src-base="/data/basemap.json" aria-label="Interactive crime concentration map">
   <div class="bar">
     <p class="label" data-title>Loading data…</p>
     <div class="seg" role="group" aria-label="Map view">
@@ -113,6 +113,8 @@
   // ── State ───────────────────────────────────────────────────
   let M: Meta, cells: number[][];
   let bgs: BG[] | null = null, bgMinPop = 200, bgSource = '';
+  type Base = { attribution: string; river: number[][][]; motorway: number[][][]; trunk: number[][][]; primary: number[][][]; labels: { name: string; lon: number; lat: number; kind: string }[] };
+  let base: Base | null = null;
   let mode: 'points' | 'hex' | 'kde' | 'bg' = 'hex';
   const state = { cats: new Set<number>(), band: -1, days: -1, hexM: 600, measure: 'count' as 'count' | 'rate' };
   let fine: Float32Array;              // filtered counts per 150 m cell
@@ -125,6 +127,9 @@
     .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
     .then((d) => { M = d.meta; cells = d.cells; init(); })
     .catch(() => ($('[data-title]').textContent = 'Map data is unavailable right now.'));
+
+  // Reference basemap (river, major roads, neighborhood names).
+  fetch(fig.dataset.srcBase!).then((r) => (r.ok ? r.json() : null)).then((d) => { base = d; if (M) { sourceLine(); draw(); } }).catch(() => {});
 
   // Block groups load only when the Neighborhoods view is first opened.
   function loadBgs(): Promise<void> {
@@ -184,7 +189,7 @@
   const fmt = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   function sourceLine() {
     const range = `${fmt(M.start)} – ${fmt(M.end)}`;
-    const bgNote = mode === 'bg' && bgSource ? ` · Boundaries: ${bgSource}` : '';
+    const bgNote = (mode === 'bg' && bgSource ? ` · Boundaries: ${bgSource}` : '') + (base ? ` · Basemap ${base.attribution}` : '');
     $('[data-src-line]').innerHTML = M.demo
       ? `Simulated incidents for preview · ${range}${bgNote}`
       : `${M.extent ? M.extent + ' · ' : ''}Source: <a href="${M.sourceUrl}" target="_blank" rel="noopener">${M.source}</a> · ${range} · Updated ${fmt(M.updated)} · Aggregated to ${M.cellMeters} m cells${bgNote}`;
@@ -285,6 +290,9 @@
     for (let i = 0; i < footprint.length; i++)
       if (footprint[i]) ctx.fillRect((i % cols) * fx, (rows - 1 - Math.floor(i / cols)) * fy, fx + 0.5, fy + 0.5);
 
+    // River sits under the data so hot cells stay readable.
+    if (base && M.bbox) strokeLines(base.river, css('--water'), 3.5, 0.45);
+
     if (mode === 'hex') {
       const R = state.hexM / SQ3, b = breaks(hexes.map((h) => h.n));
       ctx.strokeStyle = css('--rule'); ctx.lineWidth = 0.5;
@@ -361,6 +369,37 @@
       }
       ctx.globalAlpha = 1;
     }
+    drawReference();
+  }
+
+  function strokeLines(lines: number[][][], color: string, width: number, alpha: number) {
+    ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.globalAlpha = alpha; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    for (const line of lines) {
+      ctx.beginPath();
+      line.forEach(([lon, lat], k) => { const [x, y] = project(lon, lat); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Roads and names go on top, thin and muted, as a reference layer.
+  function drawReference() {
+    if (!base || !M.bbox) return;
+    const ink = css('--ink'), halo = css('--card');
+    strokeLines(base.primary, ink, 0.6, 0.35);
+    strokeLines(base.trunk, ink, 1, 0.45);
+    strokeLines(base.motorway, halo, 3.2, 0.8);
+    strokeLines(base.motorway, ink, 1.4, 0.7);
+    ctx.save();
+    ctx.font = `600 ${W < 420 ? 10 : 11}px ${css('--body')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3; ctx.strokeStyle = halo; ctx.fillStyle = ink; ctx.lineJoin = 'round';
+    for (const l of base.labels) {
+      const [x, y] = project(l.lon, l.lat);
+      if (x < 30 || x > W - 30 || y < 10 || y > H - 10) continue;
+      const t = l.name.toUpperCase();
+      ctx.strokeText(t, x, y); ctx.fillText(t, x, y);
+    }
+    ctx.restore();
   }
 
   // ── Interaction ────────────────────────────────────────────
