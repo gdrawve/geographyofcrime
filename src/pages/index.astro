@@ -103,9 +103,12 @@ const writingCount = talks.length + articles.length + conversations.length;
 
   <section class="section">
     <div class="wrap about-strip">
-      <div class="stack">
-        <p class="label">About</p>
-        <h2>Researcher, practitioner, teacher.</h2>
+      <div class="about-id">
+        <img class="headshot" src="/brand/headshot-200.webp" alt="Grant Drawve" width="120" height="120" loading="lazy" />
+        <div class="stack">
+          <p class="label">About</p>
+          <h2>Researcher, practitioner, teacher.</h2>
+        </div>
       </div>
       <div class="stack">
         <p>
@@ -186,6 +189,8 @@ const writingCount = talks.length + articles.length + conversations.length;
   .legend-n { text-align: right !important; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--hot-ink); padding-right: 0 !important; }
   @media (max-width: 560px) { .legend-d { display: none; } }
 
+  .about-id { display: flex; gap: 1.25rem; align-items: center; min-width: 0; }
+  .about-id .headshot { width: 120px; height: 120px; flex: none; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 1px var(--rule); }
   .about-strip, .contact-grid { display: grid; gap: 1.5rem 3rem; grid-template-columns: minmax(0, 1fr); }
   @media (min-width: 860px) {
     .about-strip { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }

@@ -24,6 +24,7 @@ const personLd = {
   '@id': `${site.url}/#grant-drawve`,
   name: person.name,
   honorificSuffix: person.honorific,
+  image: `${site.url}/brand/headshot.jpg`,
   jobTitle: person.jobTitle,
   worksFor: { '@type': 'Organization', name: person.employer.name, url: person.employer.url },
   alumniOf: person.education.map((e) => ({ '@type': 'CollegeOrUniversity', name: e.school })),

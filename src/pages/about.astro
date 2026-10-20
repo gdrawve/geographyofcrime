@@ -52,11 +52,13 @@ const schema = {
 >
   <section class="section">
     <div class="wrap about">
-      <header class="stack">
+      <header class="about-head">
+        <img class="headshot" src="/brand/headshot-400.webp" alt="Grant Drawve, smiling, in glasses and a plaid jacket" width="200" height="200" />
+        <div class="stack">
         <p class="label">About</p>
         <h1>Grant Drawve, PhD</h1>
-        {/* Headshot goes here when it arrives: public/brand/headshot.webp */}
         <p class="lede">I study how place shapes crime and public safety, and I try to make that research usable by the people who work on it every day.</p>
+        </div>
       </header>
 
       <div class="bio stack">
@@ -146,6 +148,7 @@ const schema = {
       </div>
       <div class="life">
         <div class="stack">
+          <img class="lego" src="/brand/lego-bigfoot-480.webp" alt="Grant's Lego-style profile picture: a bearded bigfoot minifigure in glasses holding a crime analytics report" width="240" height="240" loading="lazy" />
           <p class="label">Lego</p>
           <p>I own more Lego sets than I'd like to admit. They were easier to hide in a campus office than at home. Star Wars makes up most of the collection; the current build is the Atari set.</p>
         </div>
@@ -173,6 +176,10 @@ const schema = {
 </Base>
 
 <style>
+  .about-head { display: grid; gap: 1.25rem 2rem; grid-template-columns: minmax(0, 1fr); align-items: center; }
+  @media (min-width: 640px) { .about-head { grid-template-columns: 200px minmax(0, 1fr); } }
+  .headshot { width: 200px; height: 200px; border-radius: 50%; object-fit: cover; border: 3px solid var(--card); box-shadow: 0 0 0 1px var(--rule); }
+  .lego { width: 140px; height: 140px; border-radius: var(--radius); border: 1px solid var(--rule); }
   .about { display: grid; gap: 2.5rem; grid-template-columns: minmax(0, 1fr); }
   @media (min-width: 900px) { .about { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; } }
   .bio p { max-width: 62ch; }

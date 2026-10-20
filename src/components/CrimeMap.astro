@@ -127,6 +127,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
   .mix { display: flex; height: 0.85rem; border-radius: 3px; overflow: hidden; background: var(--paper-2); }
   .mix :global(span) { background: var(--c); height: 100%; }
+  /* Colored swatch beside each name; the text itself stays dark for contrast. */
+  .tk-text :global(.mk) { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 2px; background: var(--c); margin-right: 0.3rem; vertical-align: baseline; }
 
   .hot { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
   .hot :global(button) {
@@ -144,7 +146,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
   .detail :global(li i) { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 2px; background: var(--c); margin-right: 0.35rem; }
   .detail :global(.close) { float: right; font: 500 var(--t-xs)/1 var(--mono); background: none; border: 0; color: var(--ink-2); cursor: pointer; text-transform: uppercase; }
   .src { text-transform: none; letter-spacing: 0.02em; font-size: 0.68rem; line-height: 1.5; }
-  .src :global(a) { color: inherit; }
+  .src :global(a) { color: inherit; text-decoration: underline; }
 
   /* MapLibre controls in the site's palette */
   .cm-map :global(.maplibregl-ctrl-group) { border-radius: var(--radius); }
@@ -219,7 +221,9 @@ import 'maplibre-gl/dist/maplibre-gl.css';
     const mPerLon = 111320 * Math.cos((((s + n) / 2) * Math.PI) / 180);
     cellLL = cells.map((c) => [w + ((c[0] + 0.5) * cm) / mPerLon, s + ((c[1] + 0.5) * cm) / 110540]);
     for (const r of RES) h3At[r] = cellLL.map(([lon, lat]) => latLngToCell(lat, lon, r));
-    state.cats = new Set(M.categories.map((_, i) => i));
+    // Start with the catch-all "Other" switched off so the colors show
+    // differences between defined crime types. One click turns it back on.
+    state.cats = new Set(M.categories.map((_, i) => i).filter((i) => M.categories[i] !== 'Other'));
   }
 
   // ── Controls ────────────────────────────────────────────────
@@ -228,7 +232,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
     const box = $('[data-cats]');
     M.categories.forEach((c, i) => {
       const b = document.createElement('button');
-      b.type = 'button'; b.setAttribute('aria-pressed', 'true'); b.style.setProperty('--c', `var(--cat-${i})`);
+      b.type = 'button'; b.setAttribute('aria-pressed', String(state.cats.has(i))); b.style.setProperty('--c', `var(--cat-${i})`);
+      if (c === 'Other') b.title = 'Lower-level offenses such as trespassing, disorderly conduct, and other NIBRS Group B offenses';
       b.innerHTML = `<i aria-hidden="true"></i>${c}`;
       b.addEventListener('click', () => {
         if (state.cats.has(i) && state.cats.size === 1) return;
@@ -426,7 +431,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
     return d < 0.0004 ? best : '';  // within roughly 2 km
   };
   const typeLabel = (cats: Set<number>) =>
-    cats.size === NC() ? 'incidents' : [...cats].map((c) => M.categories[c].toLowerCase()).join(' and ') + ' incidents';
+    cats.size === NC() ? 'incidents' : cats.size === NC() - 1 && !cats.has(NC() - 1) ? 'incidents (excluding "Other")' : [...cats].map((c) => M.categories[c].toLowerCase()).join(' and ') + ' incidents';
 
   function takeaways() {
     // 1. Concentration, always on mid-size hexagons so the number is stable.
@@ -465,7 +470,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
     const mt = [...state.cats].reduce((a, c) => a + mix[c], 0) || 1;
     $('[data-mix]').innerHTML = [...state.cats].map((c) => `<span style="--c:var(--cat-${c});width:${(mix[c] / mt) * 100}%" title="${M.categories[c]} ${pct(mix[c] / mt)}"></span>`).join('');
     const order = [...state.cats].sort((a, b) => mix[b] - mix[a]);
-    $('[data-mix-text]').innerHTML = order.map((c) => `<strong style="color:var(--cat-${c})">${M.categories[c]}</strong> ${pct(mix[c] / mt)}`).join(' · ');
+    $('[data-mix-text]').innerHTML = order.map((c) => `<span class="mk" style="--c:var(--cat-${c})"></span><strong>${M.categories[c]}</strong> ${pct(mix[c] / mt)}`).join(' · ');
 
     // 4. Top hot spots on mid-size hexagons, named by nearest neighborhood.
     const top = [...agg8.entries()].sort((a, b) => b[1].t - a[1].t).slice(0, 5);
