@@ -2,7 +2,7 @@
 Central Kansas City base map for the home-page hex graphic.
 
 Downloads Census TIGER/Line roads and water for Jackson and Clay
-counties, Missouri, clips them to central Kansas City (the Missouri
+counties, Missouri, and Wyandotte and Johnson counties, Kansas, clips them to central Kansas City (the Missouri
 River south past the Country Club Plaza), simplifies, projects to a
 flat drawing grid, and writes src/data/kc-basemap.json. The home page
 draws the roads and river as a faint SVG under the crime hexagons.
@@ -29,9 +29,11 @@ from shapely.geometry import box, shape
 from shapely.ops import unary_union
 
 YEAR = 2024
-COUNTIES = ["29095", "29047"]                       # Jackson, Clay (Missouri = 29)
+# Jackson and Clay (Missouri = 29), plus Wyandotte and Johnson (Kansas = 20):
+# the west edge of the frame is Kansas City, Kansas, and the rivers meet there.
+COUNTIES = ["29095", "29047", "20209", "20091"]
 # Must match HERO_BBOX in src/components/KcHero.astro: [west, south, east, north].
-BBOX = (-94.665, 39.012, -94.505, 39.118)
+BBOX = (-94.665, 39.012, -94.505, 39.128)
 OUT = Path(__file__).resolve().parent.parent / "src" / "data" / "kc-basemap.json"
 WIDTH = 1000
 BASE = f"https://www2.census.gov/geo/tiger/TIGER{YEAR}"
@@ -108,7 +110,7 @@ def main() -> None:
                 water.append(geom)
 
     out = {
-        "source": f"U.S. Census Bureau TIGER/Line {YEAR}: roads and area water (Jackson and Clay counties, MO)",
+        "source": f"U.S. Census Bureau TIGER/Line {YEAR}: roads and area water (Jackson and Clay counties, MO; Wyandotte and Johnson counties, KS)",
         "bbox": BBOX,
         "width": WIDTH,
         "height": HEIGHT,
