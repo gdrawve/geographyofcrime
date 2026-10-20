@@ -44,7 +44,7 @@ const place: Record<string, { dx: number; dy: number; anchor: 'start' | 'end' }>
     {cities.map((c) => {
       const p = place[c.name] ?? { dx: 22, dy: 10, anchor: 'start' };
       return (
-        <g class="town">
+        <g class="town" data-city={c.name}>
           <circle class="halo" cx={c.x} cy={c.y} r="26" />
           <circle class="dot" cx={c.x} cy={c.y} r="10" />
           <text x={c.x + p.dx} y={c.y + p.dy} text-anchor={p.anchor}>{c.name}</text>

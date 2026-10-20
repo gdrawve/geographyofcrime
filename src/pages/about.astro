@@ -188,23 +188,35 @@ const schema = {
           <p>When we're not running between sports and activities, we're usually outside: hiking, biking, landscaping, or making the most of patio season.</p>
         </article>
 
-        <article class="panel home-panel">
-          <div class="stack">
+        <!-- Home base: the NWA map with a callout card for each city, joined
+             to its dot by a leader line. Hovering or focusing a card (or a
+             dot) highlights the pair. Lines are drawn by the script below. -->
+        <article class="panel home-panel" data-nwa>
+          <header class="stack home-head">
             <p class="label">Home base</p>
             <p class="big-line">Northwest Arkansas.</p>
             <p>We live along the I-49 corridor that ties Bentonville, Rogers, Springdale, and Fayetteville together. One region, many places: connected by corridors, defined by neighborhoods.</p>
-            <ol class="nwa-cities">
-              {nwaPlaces.map((c, i) => (
-                <li>
-                  <p class="label nwa-n">{String(i + 1).padStart(2, '0')} / {c.city}</p>
-                  <ul>
-                    {c.places.map(([name, what]) => <li><strong>{name}</strong><span>{what}</span></li>)}
-                  </ul>
-                </li>
-              ))}
-            </ol>
+          </header>
+          <div class="nwa-stage">
+            <svg class="leaders" aria-hidden="true"></svg>
+            {[[0, 2], [1, 3]].map((idx, side) => (
+              <div class:list={['nwa-col', side === 0 ? 'left' : 'right']}>
+                {idx.map((i) => {
+                  const c = nwaPlaces[i];
+                  return (
+                    <section class="nwa-card" data-city={c.city} style={`--n: ${i + 1}`} tabindex="0" aria-label={`${c.city}: ${c.places.map((p) => p[0]).join(', ')}`}>
+                      <p class="label nwa-n">{String(i + 1).padStart(2, '0')} / Different places within</p>
+                      <h3>{c.city}</h3>
+                      <ul>
+                        {c.places.map(([name, what]) => <li><strong>{name}</strong><span>{what}</span></li>)}
+                      </ul>
+                    </section>
+                  );
+                })}
+              </div>
+            ))}
+            <div class="nwa-col mid"><NwaMap /></div>
           </div>
-          <NwaMap />
         </article>
 
         <article class="panel dogs-panel">
@@ -277,17 +289,43 @@ const schema = {
   @media (max-width: 420px) { .lego-panel { grid-template-columns: minmax(0, 1fr); } }
   .lego { width: 120px; height: 120px; border-radius: var(--radius); border: 1px solid var(--rule); background: var(--paper); }
   .big-line { font-family: var(--display); font-stretch: 125%; font-weight: 850; font-size: 2rem; line-height: 1; color: var(--hot-ink); }
-  .home-panel { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
-  @media (min-width: 760px) { .home-panel { grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem); align-items: center; } }
-  .home-panel :global(.nwa svg) { max-height: 34rem; }
-  @media (min-width: 760px) { .home-panel { align-items: start; } }
-  .nwa-cities { list-style: none; margin: 0.6rem 0 0; padding: 0; display: grid; gap: 1.1rem 1.75rem; grid-template-columns: minmax(0, 1fr); }
-  @media (min-width: 560px) { .nwa-cities { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  .nwa-cities > li { border-top: 2px solid var(--hot); padding-top: 0.6rem; display: grid; gap: 0.45rem; align-content: start; }
+  /* Home base: cards | map | cards on wide screens, with leader lines;
+     on smaller screens the map comes first and the cards sit below it. */
+  .home-panel { grid-column: 1 / -1; gap: 1.25rem; }
+  .home-head p:last-child { max-width: 60ch; }
+  /* Small screens: the side columns dissolve so the cards flow in
+     01–04 order under the map. */
+  .nwa-stage { position: relative; display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 600px) { .nwa-stage { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .nwa-col.left, .nwa-col.right { display: contents; }
+  .nwa-card { order: var(--n); }
+  .nwa-col.mid { order: 0; grid-column: 1 / -1; max-width: 26rem; justify-self: center; width: 100%; }
+  .leaders { display: none; }
+  @media (min-width: 1180px) {
+    .nwa-stage { grid-template-columns: minmax(0, 1fr) minmax(18rem, 25rem) minmax(0, 1fr); align-items: stretch; gap: 2.5rem; }
+    .nwa-col.left, .nwa-col.right { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); align-content: space-around; position: relative; z-index: 1; }
+    .nwa-card { order: 0; }
+    .nwa-col.left { grid-column: 1; }
+    .nwa-col.mid { order: 0; grid-column: 2; grid-row: 1; max-width: none; justify-self: stretch; }
+    .nwa-col.right { grid-column: 3; grid-row: 1; }
+    .leaders { display: block; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  }
+  .leaders :global(path) { fill: none; stroke: var(--hot); stroke-width: 1.25; opacity: 0.55; transition: opacity 0.15s, stroke-width 0.15s; }
+  .leaders :global(path.on) { opacity: 1; stroke-width: 2; }
+  .nwa-card { background: var(--paper); border: 1px solid var(--rule); border-top: 3px solid var(--hot); border-radius: var(--radius); padding: 0.9rem 1rem 1rem; display: grid; gap: 0.5rem; align-content: start; transition: box-shadow 0.15s, transform 0.15s; outline: none; }
+  .nwa-card.on, .nwa-card:focus-visible { box-shadow: 0 8px 22px rgba(31, 45, 72, 0.14); transform: translateY(-2px); }
+  .nwa-card:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px; }
+  .nwa-card h3 { font-size: clamp(1.5rem, 1.1rem + 1vw, 2rem); overflow-wrap: anywhere; }
   .nwa-n { color: var(--hot-ink); }
-  .nwa-cities ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
-  .nwa-cities ul li { display: grid; gap: 0.05rem; font-size: var(--t-sm); }
-  .nwa-cities ul li span { color: var(--ink-2); font-size: var(--t-xs); }
+  .nwa-card ul { list-style: none; margin: 0; padding: 0; display: grid; }
+  .nwa-card ul li { display: grid; gap: 0.05rem; padding: 0.45rem 0; border-top: 1px solid var(--rule); font-size: var(--t-sm); }
+  .nwa-card ul li:first-child { border-top: 0; padding-top: 0; }
+  .nwa-card ul li span { color: var(--ink-2); font-size: var(--t-xs); }
+  /* Highlighted city on the map */
+  .home-panel :global(.town .halo) { transition: opacity 0.15s; }
+  .home-panel :global(.town.on .halo) { opacity: 0.4; }
+  .home-panel :global(.town.on text) { fill: var(--hot-ink); }
+  .home-panel :global(.town) { cursor: pointer; }
   .dogs-panel { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); gap: 1.1rem; }
   @media (min-width: 760px) { .dogs-panel { grid-template-columns: 13rem minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
   .dogs-panel figure { margin: 0; display: grid; gap: 0.45rem; min-width: 0; }
@@ -297,3 +335,56 @@ const schema = {
   .dogs li:last-child { border-bottom: 0; }
   .dogs span { color: var(--ink-2); font-size: var(--t-sm); }
 </style>
+
+<script>
+  // Leader lines from each callout card to its city dot, plus the shared
+  // hover/focus highlight. Redrawn whenever the layout changes size.
+  const panel = document.querySelector<HTMLElement>('[data-nwa]');
+  if (panel) {
+    const stage = panel.querySelector<HTMLElement>('.nwa-stage')!;
+    const svg = panel.querySelector<SVGSVGElement>('.leaders')!;
+    const cards = [...panel.querySelectorAll<HTMLElement>('.nwa-card')];
+    const town = (city: string) => panel.querySelector<SVGGElement>(`.town[data-city="${city}"]`);
+    const NS = 'http://www.w3.org/2000/svg';
+
+    function draw() {
+      svg.replaceChildren();
+      if (getComputedStyle(svg).display === 'none') return;
+      const s = stage.getBoundingClientRect();
+      for (const card of cards) {
+        const dot = town(card.dataset.city!)?.querySelector('.dot');
+        if (!dot) continue;
+        const c = card.getBoundingClientRect(), d = dot.getBoundingClientRect();
+        const left = card.closest('.left') !== null;
+        const x1 = (left ? c.right : c.left) - s.left, y1 = c.top + 46 - s.top;   // level with the city name
+        const x2 = d.left + d.width / 2 - s.left, y2 = d.top + d.height / 2 - s.top;
+        const bend = left ? Math.min(x1 + 28, x2) : Math.max(x1 - 28, x2);
+        // Out from the card, then straight to the dot.
+        const path = document.createElementNS(NS, 'path');
+        path.setAttribute('d', `M${x1},${y1} L${bend},${y1} L${x2},${y2}`);
+        path.dataset.city = card.dataset.city!;
+        svg.append(path);
+      }
+    }
+    function highlight(city: string | null) {
+      cards.forEach((c) => c.classList.toggle('on', c.dataset.city === city));
+      panel!.querySelectorAll('.town').forEach((t) => t.classList.toggle('on', (t as SVGGElement).dataset.city === city));
+      svg.querySelectorAll('path').forEach((p) => p.classList.toggle('on', p.dataset.city === city));
+    }
+    cards.forEach((c) => {
+      c.addEventListener('pointerenter', () => highlight(c.dataset.city!));
+      c.addEventListener('pointerleave', () => highlight(null));
+      c.addEventListener('focus', () => highlight(c.dataset.city!));
+      c.addEventListener('blur', () => highlight(null));
+    });
+    panel.querySelectorAll<SVGGElement>('.town').forEach((t) => {
+      t.addEventListener('pointerenter', () => highlight(t.dataset.city!));
+      t.addEventListener('pointerleave', () => highlight(null));
+      // Tapping a city on the map brings its card into view.
+      t.addEventListener('click', () => cards.find((c) => c.dataset.city === t.dataset.city)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+    });
+    new ResizeObserver(draw).observe(stage);
+    document.fonts?.ready.then(draw);
+    draw();
+  }
+</script>
