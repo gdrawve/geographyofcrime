@@ -31,6 +31,7 @@ jobs:
       - name: Build grid from city API
         env:
           SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         # On failure, the last lines of the error are posted as
         # annotations so they show on the run's summary page.
         run: |

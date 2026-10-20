@@ -32,6 +32,7 @@ Needs:  pip install shapely pyshp
 
 import io
 import json
+import os
 import random
 import sys
 import urllib.parse
@@ -84,16 +85,31 @@ def load_census(bg_cfg: dict, bbox: list[float] | None = None) -> list[dict]:
             bgs.append({"id": a["GEOID"], "geom": g, "pop": None})
 
     # Population: ACS table B01003 (total population), one county at a time.
+    # Spaces must be sent as %20 (not "+"). A free key from
+    # api.census.gov/data/key_signup.html, saved as the GitHub secret
+    # CENSUS_API_KEY, raises the request limit. If the Census API fails,
+    # the map still works: counts show, and rates are switched off.
     print("  downloading ACS population …", file=sys.stderr)
     pop = {}
+    key = os.environ.get("CENSUS_API_KEY")
     for county in bg_cfg["counties"]:
-        q = urllib.parse.urlencode({"get": "B01003_001E", "for": "block group:*",
-                                    "in": f"state:{st} county:{county} tract:*"})
-        rows = json.loads(_get(f"https://api.census.gov/data/{bg_cfg['acs_year']}/acs/acs5?{q}"))
+        params = {"get": "B01003_001E", "for": "block group:*",
+                  "in": f"state:{st} county:{county} tract:*"}
+        if key:
+            params["key"] = key
+        url = f"https://api.census.gov/data/{bg_cfg['acs_year']}/acs/acs5?" + urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
+        try:
+            body = _get(url)
+            rows = json.loads(body)
+        except Exception as err:
+            snippet = locals().get("body", b"")[:200]
+            print(f"  ACS request failed for county {county}: {err} {snippet!r}", file=sys.stderr)
+            continue
         head = rows[0]
         for r in rows[1:]:
             d = dict(zip(head, r))
             pop[d["state"] + d["county"] + d["tract"] + d["block group"]] = int(d["B01003_001E"])
+    print(f"  population found for {len(pop):,} block groups", file=sys.stderr)
     for b in bgs:
         b["pop"] = pop.get(b["id"])
     print(f"  kept {len(bgs)} block groups inside the city", file=sys.stderr)
