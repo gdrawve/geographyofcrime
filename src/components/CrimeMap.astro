@@ -319,7 +319,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
       const n = members.reduce((s, i) => s + catTotal[i], 0);
       b.innerHTML = `<i aria-hidden="true"></i>${gName === 'Persons' || gName === 'Property' || gName === 'Society' ? `Crimes against ${gName.toLowerCase()}` : gName}<span class="ct">${n.toLocaleString()}</span>`;
       if (gName === 'Group B') b.title = 'NIBRS Group B: arrest-only offenses such as DUI, trespass, disorderly conduct, and "all other offenses"';
-      if (gName === 'Unclassified') b.title = 'Reports that are not NIBRS offenses: warrant arrests, traffic crashes, investigations, unfounded reports, and justifiable homicide';
+      if (gName === 'Unclassified') b.title = 'Reports that are not NIBRS offenses: warrant arrests, traffic crashes, investigations, and justifiable homicide. Unfounded reports are removed entirely';
       b.addEventListener('click', () => {
         if (on.has(g)) {
           const left = [...state.cats].filter((c) => M.catGroup[c] !== g);

@@ -505,7 +505,13 @@ def main():
 
         incidents, dropped = [], 0
         first = last = None
+        unfounded = 0
         for r in raw:
+            # "Unfounded" means police determined no crime occurred. NIBRS
+            # practice is to remove these reports, so they are never counted.
+            if "unfounded" in f"{r.get('label') or ''} {r.get('nibrs_name') or ''}".lower():
+                unfounded += 1
+                continue
             when = parse_when(r.get(f["date"]))
             try:
                 lat, lon = float(r.get(f["lat"])), float(r.get(f["lon"]))
@@ -523,7 +529,7 @@ def main():
             incidents.append((lat, lon, categorize(r.get(f["offense"]) if cfg.get("offense_is_nibrs") else None,
                                                     r.get("nibrs_name"), r.get("label") or (None if cfg.get("offense_is_nibrs") else r.get(f["offense"]))),
                               band_of(when.hour), int(when.weekday() >= 5), when))
-        print(f"Kept {len(incidents):,} incidents, dropped {dropped:,}", file=sys.stderr)
+        print(f"Kept {len(incidents):,} incidents, dropped {dropped:,}, removed {unfounded:,} unfounded reports", file=sys.stderr)
         print(f"Classified by NIBRS code {MATCHED['code']:,}, by NIBRS name {MATCHED['name']:,}, "
               f"by KCPD label {MATCHED['label']:,}; unclassified {MATCHED['none']:,}", file=sys.stderr)
         if UNMATCHED:

@@ -234,7 +234,7 @@ const schema = {
         <h2>How these numbers are made</h2>
         <ul class="method">
           <li>Source: <a href={meta.sourceUrl} target="_blank" rel="noopener">{meta.source}</a>, pulled every Monday.</li>
-          <li>Counted by report and offense, so a report with three victims counts once. Dates are when the offense began.</li>
+          <li>Counted by report and offense, so a report with three victims counts once. Reports marked unfounded (police determined no crime occurred) are removed. Dates are when the offense began.</li>
           <li>Crime types are the FBI's NIBRS offense categories, grouped by NIBRS "Crime Against": persons, property, or society (Group A). Robbery counts as a crime against property, as it does in NIBRS. Group B offenses (arrest-only, such as DUI and trespass) and unclassified reports are kept separate.</li>
           <li>Each report is classified by its NIBRS code; when the code is blank, by its NIBRS offense name, then by KCPD's own offense label.</li>
           <li>Locations are aggregated to 150 m squares and block groups. No addresses, names, or demographics are downloaded or shown.</li>
