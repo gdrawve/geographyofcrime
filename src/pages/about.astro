@@ -274,6 +274,9 @@ const schema = {
   .hl-detail { color: var(--ink-2); font-size: var(--t-sm); }
 
   .two { display: grid; gap: 2.5rem 3rem; grid-template-columns: minmax(0, 1fr); }
+  /* Pack each column from the top; otherwise the shorter column stretches
+     to match the taller one and its gaps grow, knocking the rules out of line. */
+  .two > .stack { align-content: start; }
   @media (min-width: 860px) { .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
   .facts { margin: 0; display: grid; border-top: 1.5px solid var(--ink); align-content: start; }
   .facts div { display: grid; grid-template-columns: 4rem minmax(0, 1fr); gap: 1rem; padding: 0.85rem 0; border-bottom: 1px solid var(--rule); }
