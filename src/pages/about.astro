@@ -151,11 +151,12 @@ const schema = {
             <div><dt class="label">{e.degree.split(',')[0]}</dt><dd>{e.degree.split(', ')[1]}<br /><span class="muted">{e.school}</span></dd></div>
           ))}
         </dl>
+        <p>Publications, grants, teaching, and service are in my CV.</p>
+        <p><a class="btn" href={person.cv} target="_blank" rel="noopener">Download CV (PDF)</a></p>
       </div>
       <div class="stack">
         <h2>Research and profiles</h2>
-        <p>Publications, grants, teaching, and service are in my CV. A summary of the research is on the <a href="/research/">Research</a> page.</p>
-        <p><a class="btn" href={person.cv} target="_blank" rel="noopener">Download CV (PDF)</a></p>
+        <p>A summary of the research is on the <a href="/research/">Research</a> page.</p>
         <ul class="links">
           {person.profiles.map((p) => (
             <li><a href={p.url} target="_blank" rel="me noopener"><span>{p.label}</span><span aria-hidden="true">↗</span></a></li>
