@@ -77,7 +77,12 @@ const schema = {
   name: 'Kansas City, Missouri crime by the numbers',
   description: `Monthly trends, year-over-year change, hour-by-weekday patterns, and neighborhood rankings for ${fmt(meta.total12)} incidents reported to the Kansas City, Missouri Police Department, ${longDate(meta.start)} to ${longDate(meta.end)}.`,
   url: 'https://geographyofcrime.com/kansas-city/',
-  creator: { '@id': 'https://geographyofcrime.com/#grant-drawve' },
+  // Spelled out (not just an @id) because Google's dataset checker reads each block on its own.
+  creator: { '@type': 'Person', '@id': 'https://geographyofcrime.com/#grant-drawve', name: 'Grant Drawve', url: 'https://geographyofcrime.com/about/' },
+  // The statistics on this page may be reused with credit. The KCPD
+  // source data itself is public domain.
+  license: 'https://creativecommons.org/licenses/by/4.0/',
+  isAccessibleForFree: true,
   isBasedOn: meta.sourceUrl || undefined,
   temporalCoverage: `${months[0]}/${meta.end}`,
   spatialCoverage: { '@type': 'Place', name: 'Kansas City, Missouri' },
@@ -243,7 +248,8 @@ const schema = {
       <div class="stack">
         <h2>How these numbers are made</h2>
         <ul class="method">
-          <li>Source: <a href={meta.sourceUrl} target="_blank" rel="noopener">{meta.source}</a>, pulled every Monday.</li>
+          <li>Source: <a href={meta.sourceUrl} target="_blank" rel="noopener">{meta.source}</a> (public domain), pulled every Monday.</li>
+          <li>The statistics on this page are free to reuse under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>: credit "Grant Drawve, geographyofcrime.com".</li>
           <li>Counted by report and offense, so a report with three victims counts once. Reports marked unfounded (police determined no crime occurred) are removed. Dates are when the offense began.</li>
           <li>Crime types are the FBI's NIBRS offense categories, grouped by NIBRS "Crime Against": persons, property, or society (Group A). Robbery counts as a crime against property, as it does in NIBRS. Group B offenses (arrest-only, such as DUI and trespass) and unclassified reports are kept separate.</li>
           <li>Each report is classified by its NIBRS code; when the code is blank, by its NIBRS offense name, then by KCPD's own offense label.</li>
