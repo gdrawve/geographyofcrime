@@ -1,0 +1,67 @@
+---
+// Newsletter signup, sent straight to Kit (form 10076982). No Kit script
+// loads on the page: the form posts to Kit's subscription address, and
+// nothing reaches Kit until someone presses Subscribe. With JavaScript,
+// the reply shows in place; without it, the browser goes to Kit's own
+// confirmation page. Kit then emails a confirm link (double opt-in).
+import { site } from '../data/site';
+
+interface Props { compact?: boolean; id?: string }
+const { compact = false, id = 'newsletter' } = Astro.props;
+const action = `https://app.kit.com/forms/${site.kitFormId}/subscriptions`;
+---
+<form class:list={['nl', compact && 'nl-compact']} action={action} method="post" data-nl aria-labelledby={`${id}-title`}>
+  <div class="nl-copy">
+    <p class="label" id={`${id}-title`}>Newsletter</p>
+    {!compact && <p class="nl-head">Notes on the geography of crime.</p>}
+    <p class="nl-text">Occasional emails: new episodes, tutorials, tools, and research. No spam; unsubscribe anytime.</p>
+  </div>
+  <div class="nl-row">
+    <label class="visually-hidden" for={`${id}-email`}>Email address</label>
+    <input id={`${id}-email`} name="email_address" type="email" required autocomplete="email" placeholder="you@example.com" />
+    <button type="submit" class="btn">Subscribe</button>
+  </div>
+  <p class="nl-msg" role="status" aria-live="polite" data-nl-msg></p>
+</form>
+
+<style>
+  .nl { display: grid; gap: 0.7rem; min-width: 0; }
+  .nl-head { font-family: var(--display); font-stretch: 112%; font-weight: 800; font-size: var(--t-lg); line-height: 1.15; }
+  .nl-text { color: var(--ink-2); font-size: var(--t-sm); max-width: 44ch; }
+  .nl-row { display: flex; flex-wrap: wrap; gap: 0.5rem; max-width: 30rem; }
+  .nl-row input {
+    flex: 1 1 14rem; min-width: 0;
+    font: 400 var(--t-sm)/1.2 var(--body); color: var(--ink); background: var(--card);
+    border: 1.5px solid var(--ink-2); border-radius: var(--radius); padding: 0.65rem 0.75rem;
+  }
+  .nl-row input:focus-visible { outline: 2px solid var(--hot); outline-offset: 1px; }
+  .nl-row .btn { flex: none; }
+  .nl-msg { font-size: var(--t-sm); min-height: 1.2em; }
+  .nl-msg.ok { color: var(--ink); font-weight: 600; }
+  .nl-msg.err { color: var(--hot-ink); }
+</style>
+
+<script>
+  // Submit in place when possible; if anything goes wrong, fall back to a
+  // normal form post, which shows Kit's own confirmation page.
+  document.querySelectorAll<HTMLFormElement>('form[data-nl]').forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = form.querySelector<HTMLElement>('[data-nl-msg]')!;
+      const btn = form.querySelector<HTMLButtonElement>('button')!;
+      btn.disabled = true; msg.className = 'nl-msg'; msg.textContent = 'Subscribing…';
+      try {
+        const r = await fetch(form.action, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || (d.status && d.status !== 'success')) throw new Error('rejected');
+        msg.classList.add('ok');
+        msg.textContent = 'Almost done: check your email and click the confirm link.';
+        form.reset();
+      } catch {
+        form.submit();   // plain post to Kit as a fallback
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+</script>

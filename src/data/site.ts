@@ -17,6 +17,8 @@ export const site = {
   email: 'gdrawve@capindex.com',
   // Cloudflare Web Analytics: cookie-free visit counts. This token is
   // public by design (it sits in every page's HTML). Set to '' to turn off.
+  // Kit (newsletter) signup form. Public: it appears in the page code.
+  kitFormId: '10076982',
   cloudflareAnalyticsToken: '8e16777b79874248989521f36ea12a3e',
 };
 

@@ -1,4 +1,5 @@
 ---
+import Newsletter from '../../components/Newsletter.astro';
 import Base from '../../layouts/Base.astro';
 import Video from '../../components/Video.astro';
 import { episodes, intro, epLabel, epTitle } from '../../data/episodes';
@@ -56,6 +57,9 @@ const schema = {
         ))}
       </ol>
     </div>
+  </section>
+  <section class="section">
+    <div class="wrap"><Newsletter id="nl-podcast" /></div>
   </section>
 </Base>
 

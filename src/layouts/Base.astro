@@ -13,6 +13,7 @@ import '@fontsource/cinzel/600.css';
 import '../styles/global.css';
 import { site, person, nav } from '../data/site';
 import { safeJson } from '../lib/safe-json';
+import Newsletter from '../components/Newsletter.astro';
 
 interface Props {
   title?: string;            // page name; site name is appended
@@ -127,6 +128,7 @@ const ld = [personLd, websiteLd, ...extra];
 
     <footer class="site-footer">
       <div class="wrap foot">
+        <div class="foot-nl"><Newsletter compact id="nl-footer" /></div>
         <div class="foot-id">
           <img class="foot-badge" src="/brand/badge-160.webp" alt="" width="80" height="80" loading="lazy" />
         <div class="stack">
@@ -237,4 +239,6 @@ const ld = [personLd, websiteLd, ...extra];
   @media (max-width: 520px) { .foot-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .foot-cols ul { list-style: none; margin: 0.45rem 0 0; padding: 0; display: grid; gap: 0.35rem; font-size: var(--t-sm); }
   .foot-copy { grid-column: 1 / -1; }
+  .foot-nl { grid-column: 1 / -1; border-bottom: 1px solid var(--rule); padding-bottom: 1.5rem; }
+  @media (min-width: 760px) { .foot-nl :global(.nl) { grid-template-columns: minmax(0, 1fr) minmax(0, 30rem); align-items: center; column-gap: 2rem; } .foot-nl :global(.nl-msg) { grid-column: 2; } }
 </style>
