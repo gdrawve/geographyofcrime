@@ -146,12 +146,12 @@ const schema = {
     <div class="wrap two">
       <div class="stack">
         <h2>Education</h2>
+        <p>Publications, grants, teaching, and service are in my CV.</p>
         <dl class="facts">
           {person.education.map((e) => (
             <div><dt class="label">{e.degree.split(',')[0]}</dt><dd>{e.degree.split(', ')[1]}<br /><span class="muted">{e.school}</span></dd></div>
           ))}
         </dl>
-        <p>Publications, grants, teaching, and service are in my CV.</p>
         <p><a class="btn" href={person.cv} target="_blank" rel="noopener">Download CV (PDF)</a></p>
       </div>
       <div class="stack">
