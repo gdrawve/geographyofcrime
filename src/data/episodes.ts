@@ -28,6 +28,21 @@ export const intro = { youtube: 'k2TFZB0ELXI', title: 'Introduction to the podca
 
 export const episodes: Episode[] = [
   {
+    number: 10,
+    slug: '10-hannah-steinman',
+    guests: ['Hannah Steinman'],
+    youtube: '6OHafO-TJTI',
+    summary:
+      'Criminologist Hannah Steinman joins Grant to separate crime trends from reality, drawing on the white paper "It Depends Where You Look: Crime, Place, and Risk Across Atlanta." They cover how national and citywide trends can mask local conditions, and why some places stay at elevated risk even when overall crime falls.',
+    takeaways: [
+      'National and citywide crime trends can hide what is happening at a specific location.',
+      'Atlanta\'s crime landscape has shifted, but risk remains concentrated at specific facilities.',
+      'Some locations stay at elevated risk regardless of the broader trend.',
+      'For security professionals, location-specific data should drive decisions, not headline numbers.',
+    ],
+    transcript: '',
+  },
+  {
     number: 9,
     slug: '09-michael-nino',
     guests: ['Dr. Michael Niño'],
