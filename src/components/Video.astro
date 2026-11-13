@@ -8,7 +8,7 @@ const { id, title } = Astro.props;
 ---
 <div class="yt">
   <a class="yt-btn" href={`https://www.youtube.com/watch?v=${id}`} data-yt={id} data-title={title} aria-label={`Play: ${title}`}>
-    <img src={`/yt/${id}.jpg`} alt="" width="480" height="360" loading="lazy" />
+    <img src={`/yt/${id}.jpg`} alt="" width="1280" height="720" decoding="async" loading="lazy" />
     <span class="yt-play" aria-hidden="true"></span>
   </a>
 </div>

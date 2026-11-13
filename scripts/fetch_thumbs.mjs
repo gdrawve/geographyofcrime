@@ -30,12 +30,23 @@ async function worker() {
     const id = queue.shift();
     const file = join(OUT, `${id}.jpg`);
     try { await access(file); kept++; continue; } catch {}
-    try {
-      const r = await fetch(`https://i.ytimg.com/vi/${id}/hqdefault.jpg`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      await writeFile(file, Buffer.from(await r.arrayBuffer()));
-      got++;
-    } catch (err) { failed.push(`${id} (${err.message})`); }
+    // Try the sharpest version first. maxresdefault is 1280x720 and true
+    // 16:9, so nothing is cropped. Older or low-res uploads may not have
+    // it (YouTube answers 404), so fall back to sddefault (640x480) and
+    // then hqdefault (480x360). The 4:3 sizes carry black bars that the
+    // player crops off, which is why they look soft when stretched.
+    let lastErr = '';
+    for (const size of ['maxresdefault', 'sddefault', 'hqdefault']) {
+      try {
+        const r = await fetch(`https://i.ytimg.com/vi/${id}/${size}.jpg`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        await writeFile(file, Buffer.from(await r.arrayBuffer()));
+        got++;
+        lastErr = '';
+        break;
+      } catch (err) { lastErr = err.message; }
+    }
+    if (lastErr) failed.push(`${id} (${lastErr})`);
   }
 }
 await Promise.all(Array.from({ length: 8 }, worker));
